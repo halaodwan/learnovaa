@@ -47,7 +47,7 @@ const Flashcards = () => {
   return (
     <div className="max-w-2xl mx-auto animate-fade-in p-4 min-h-screen bg-white text-gray-900">
 
-      {/* Header */}
+      
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">
           🃏 Flashcards
@@ -60,20 +60,20 @@ const Flashcards = () => {
         </Link>
       </div>
 
-      {/* Counter */}
+      
       <CardCounter
         current={cards.length > 0 ? currentIndex + 1 : 0}
         total={cards.length}
       />
 
-      {/* Flashcard */}
+      
       <FlashcardItem
         card={card}
         flipped={flipped}
         setFlipped={setFlipped}
       />
 
-      {/* Controls */}
+      
       <Controls
         goPrev={goPrev}
         goNext={goNext}
@@ -82,10 +82,10 @@ const Flashcards = () => {
         disableNext={currentIndex === cards.length - 1}
       />
 
-      {/* Previous Sets (DARK BOX ONLY) */}
+      
       <div className="bg-gray-900 rounded-xl shadow-lg p-5 border border-gray-700 mt-6">
 
-        <h3 className="text-lg font-semibold mb-3 text-white">
+        <h3 className="text-lg font-semibold mb-3 !text-white">
           📚 Previous Flashcard Sets
         </h3>
 
