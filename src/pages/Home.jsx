@@ -179,10 +179,14 @@ function Home() {
 
   const generateAll = async () => {
     const sourceText =
-      youtubeLink.trim() !== "" ? youtubeLink.trim() : contentText;
+      youtubeLink.trim() !== ""
+        ? youtubeLink.trim()
+        : contentText.trim() !== ""
+          ? contentText
+          : uploadedFileName;
 
     if (sourceText.trim() === "") {
-      alert("Please paste text or add a YouTube link first.");
+      alert("Please paste text, add a YouTube link, or upload a file first.");
       return;
     }
 

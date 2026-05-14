@@ -1,9 +1,6 @@
-const OpenAI = require("openai");
+const { GoogleGenerativeAI } = require("@google/generative-ai");
 
-const client = new OpenAI({
-  apiKey: process.env.DEEPSEEK_API_KEY,
-  baseURL: "https://api.deepseek.com",
-});
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 const generateStudyMaterials = async (req, res) => {
   try {
@@ -15,36 +12,55 @@ const generateStudyMaterials = async (req, res) => {
       });
     }
 
-    const response = await client.chat.completions.create({
-      model: "deepseek-chat",
-      messages: [
-        {
-          role: "system",
-          content:
-            "You are an AI study assistant. Generate clear study materials for students.",
-        },
-        {
-          role: "user",
-          content: `
-Create study materials from this content:
+    const model = genAI.getGenerativeModel({
+      model: "gemini-1.5-flash-8b",
+    });
+
+    const prompt = `
+You are an AI study assistant.
+
+Create clear study materials from the following content:
 
 ${content}
 
-Return:
-1. Summary
-2. Explanation
-3. 5 Flashcards as question and answer
-4. 5 Exam questions
-          `,
-        },
-      ],
-    });
+Return the answer in this exact format:
+
+Summary:
+- Write a short summary.
+
+Explanation:
+- Explain the topic clearly and simply.
+
+Flashcards:
+1. Q: ...
+   A: ...
+2. Q: ...
+   A: ...
+3. Q: ...
+   A: ...
+4. Q: ...
+   A: ...
+5. Q: ...
+   A: ...
+
+Exam Questions:
+1. ...
+2. ...
+3. ...
+4. ...
+5. ...
+`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
 
     res.status(200).json({
-      result: response.choices[0].message.content,
+      result: text,
     });
   } catch (error) {
     console.error(error);
+
     res.status(500).json({
       message: "AI generation failed",
       error: error.message,
