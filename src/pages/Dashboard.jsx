@@ -1,17 +1,17 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
-  BookOpen, Layers, ClipboardList, Clock, CalendarDays,
-  FileText, Play, Plus, Check, Trash2
+  BookOpen,
+  Layers,
+  ClipboardList,
+  Clock,
+  CalendarDays,
+  FileText,
+  Play,
+  Plus,
+  Check,
+  Trash2,
 } from "lucide-react";
 import { Link } from "react-router-dom";
-
-const stats = [
-  { label: "Summaries / Explanations", value: 14, icon: BookOpen, color: "bg-edu-info/10 text-edu-info" },
-  { label: "Flashcards", value: 48, icon: Layers, color: "bg-edu-success/10 text-edu-success" },
-  { label: "Exams Taken", value: 7, icon: ClipboardList, color: "bg-edu-warning/10 text-edu-warning" },
-  { label: "Study Hours Today", value: "2.5h", icon: Clock, color: "bg-primary/10 text-primary" },
-  { label: "Study Hours This Week", value: "12h", icon: CalendarDays, color: "bg-destructive/10 text-destructive" },
-];
 
 const quickLinks = [
   { label: "Latest Exams", icon: ClipboardList, path: "/exams" },
@@ -33,16 +33,82 @@ const Dashboard = () => {
   const [newTime, setNewTime] = useState("12:00");
   const [showAdd, setShowAdd] = useState(false);
 
+  const [contentsCount, setContentsCount] = useState(0);
+  const [flashcardsCount, setFlashcardsCount] = useState(0);
+  const [examsCount, setExamsCount] = useState(0);
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        const contentsRes = await fetch("http://localhost:3000/contents");
+        const flashcardsRes = await fetch("http://localhost:3000/flashcards");
+        const examsRes = await fetch("http://localhost:3000/exams");
+
+        const contentsData = await contentsRes.json();
+        const flashcardsData = await flashcardsRes.json();
+        const examsData = await examsRes.json();
+
+        setContentsCount(Array.isArray(contentsData) ? contentsData.length : 0);
+        setFlashcardsCount(Array.isArray(flashcardsData) ? flashcardsData.length : 0);
+        setExamsCount(Array.isArray(examsData) ? examsData.length : 0);
+      } catch (error) {
+        console.error("Dashboard fetch error:", error);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
+
+  const stats = [
+    {
+      label: "Summaries / Explanations",
+      value: contentsCount,
+      icon: BookOpen,
+      color: "bg-edu-info/10 text-edu-info",
+    },
+    {
+      label: "Flashcards",
+      value: flashcardsCount,
+      icon: Layers,
+      color: "bg-edu-success/10 text-edu-success",
+    },
+    {
+      label: "Exams Taken",
+      value: examsCount,
+      icon: ClipboardList,
+      color: "bg-edu-warning/10 text-edu-warning",
+    },
+    {
+      label: "Study Hours Today",
+      value: "2.5h",
+      icon: Clock,
+      color: "bg-primary/10 text-primary",
+    },
+    {
+      label: "Study Hours This Week",
+      value: "12h",
+      icon: CalendarDays,
+      color: "bg-destructive/10 text-destructive",
+    },
+  ];
+
   const toggleTask = (id) => {
     setTasks(tasks.map((t) => (t.id === id ? { ...t, done: !t.done } : t)));
   };
 
   const addTask = () => {
     if (!newTask.trim()) return;
+
     setTasks([
       ...tasks,
-      { id: Date.now(), title: newTask, time: newTime, done: false },
+      {
+        id: Date.now(),
+        title: newTask,
+        time: newTime,
+        done: false,
+      },
     ]);
+
     setNewTask("");
     setShowAdd(false);
   };
@@ -59,10 +125,14 @@ const Dashboard = () => {
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
         {stats.map(({ label, value, icon: Icon, color }) => (
           <div key={label} className="glass-card rounded-xl p-4 text-center">
-            <div className={`w-10 h-10 rounded-lg ${color} flex items-center justify-center mx-auto mb-2`}>
+            <div
+              className={`w-10 h-10 rounded-lg ${color} flex items-center justify-center mx-auto mb-2`}
+            >
               <Icon className="w-5 h-5" />
             </div>
-            <p className="text-2xl font-heading font-bold text-foreground">{value}</p>
+            <p className="text-2xl font-heading font-bold text-foreground">
+              {value}
+            </p>
             <p className="text-xs text-muted-foreground mt-1">{label}</p>
           </div>
         ))}
@@ -89,6 +159,7 @@ const Dashboard = () => {
       <div className="glass-card rounded-xl p-5">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg">✅ Task List</h3>
+
           <button
             onClick={() => setShowAdd(!showAdd)}
             className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity"
@@ -107,12 +178,14 @@ const Dashboard = () => {
               placeholder="Task title..."
               className="flex-1 px-3 py-2 rounded-lg border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
             />
+
             <input
               type="time"
               value={newTime}
               onChange={(e) => setNewTime(e.target.value)}
               className="px-3 py-2 rounded-lg border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
             />
+
             <button
               onClick={addTask}
               className="px-4 py-2 rounded-lg bg-edu-success text-edu-success-foreground text-sm font-medium hover:opacity-90 transition-opacity"
@@ -138,17 +211,27 @@ const Dashboard = () => {
                       : "border-muted-foreground/30"
                   }`}
                 >
-                  {task.done && <Check className="w-3 h-3 text-edu-success-foreground" />}
+                  {task.done && (
+                    <Check className="w-3 h-3 text-edu-success-foreground" />
+                  )}
                 </div>
               </button>
 
               <div className="flex-1">
-                <p className={`text-sm font-medium ${task.done ? "line-through text-muted-foreground" : "text-foreground"}`}>
+                <p
+                  className={`text-sm font-medium ${
+                    task.done
+                      ? "line-through text-muted-foreground"
+                      : "text-foreground"
+                  }`}
+                >
                   {task.title}
                 </p>
               </div>
 
-              <span className="text-xs text-muted-foreground">{task.time}</span>
+              <span className="text-xs text-muted-foreground">
+                {task.time}
+              </span>
 
               <button
                 onClick={() => removeTask(task.id)}
