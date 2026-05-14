@@ -1,0 +1,131 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+:root {
+  --background: 210 50% 96%;
+  --foreground: 220 60% 15%;
+
+  --card: 210 40% 98%;
+  --card-foreground: 220 60% 15%;
+
+  --popover: 0 0% 100%;
+  --popover-foreground: 220 60% 15%;
+
+  --primary: 220 65% 28%;
+  --primary-foreground: 210 50% 96%;
+
+  --secondary: 210 45% 88%;
+  --secondary-foreground: 220 60% 20%;
+
+  --muted: 210 30% 92%;
+  --muted-foreground: 220 15% 46%;
+
+  --accent: 200 80% 55%;
+  --accent-foreground: 220 65% 12%;
+
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 98%;
+
+  --border: 210 30% 86%;
+  --input: 210 30% 86%;
+  --ring: 220 65% 28%;
+
+  --radius: 0.75rem;
+
+  --sidebar-background: 220 60% 20%;
+  --sidebar-foreground: 210 50% 96%;
+  --sidebar-primary: 200 80% 55%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 220 50% 30%;
+  --sidebar-accent-foreground: 210 50% 96%;
+  --sidebar-border: 220 40% 30%;
+  --sidebar-ring: 200 80% 55%;
+
+  --edu-sky: 205 85% 92%;
+  --edu-sky-foreground: 220 60% 20%;
+  --edu-success: 150 60% 42%;
+  --edu-success-foreground: 0 0% 100%;
+  --edu-warning: 38 92% 50%;
+  --edu-warning-foreground: 0 0% 100%;
+  --edu-info: 200 80% 55%;
+  --edu-info-foreground: 0 0% 100%;
+  --edu-gradient-start: 210 60% 94%;
+  --edu-gradient-end: 220 50% 88%;
+  --edu-nav: 220 65% 22%;
+  --edu-nav-foreground: 210 50% 96%;
+}
+
+.dark {
+  --background: 222 47% 8%;
+  --foreground: 210 40% 95%;
+  --card: 222 47% 11%;
+  --card-foreground: 210 40% 95%;
+  --popover: 222 47% 11%;
+  --popover-foreground: 210 40% 95%;
+  --primary: 200 80% 55%;
+  --primary-foreground: 222 47% 8%;
+  --secondary: 217 33% 17%;
+  --secondary-foreground: 210 40% 95%;
+  --muted: 217 33% 17%;
+  --muted-foreground: 215 20% 65%;
+  --accent: 217 33% 17%;
+  --accent-foreground: 210 40% 95%;
+  --destructive: 0 63% 31%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 217 33% 17%;
+  --input: 217 33% 17%;
+  --ring: 212 27% 84%;
+}
+
+* {
+  box-sizing: border-box;
+  border-color: hsl(var(--border));
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: 'IBM Plex Sans', sans-serif;
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: 'Space Grotesk', sans-serif;
+  color: hsl(var(--primary));
+  font-weight: 700;
+  margin: 0;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.edu-gradient {
+  background: linear-gradient(
+    135deg,
+    hsl(var(--edu-gradient-start)),
+    hsl(var(--edu-gradient-end))
+  );
+}
+
+.glass-card {
+  background: hsla(var(--card), 0.8);
+  backdrop-filter: blur(12px);
+  border: 1px solid hsla(var(--border), 0.5);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+  border-radius: var(--radius);
+}
