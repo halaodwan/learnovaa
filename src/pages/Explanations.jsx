@@ -1,4 +1,4 @@
-import { Home, ArrowRightLeft, Lightbulb, History } from "lucide-react";
+import { Home, ArrowRightLeft, History } from "lucide-react";
 import { Link, useSearchParams, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";
@@ -8,18 +8,28 @@ const Explanations = () => {
   const location = useLocation();
 
   const [previousItems, setPreviousItems] = useState([]);
+  const [savedExplanation, setSavedExplanation] = useState("");
+  const [savedSummary, setSavedSummary] = useState("");
 
   const mode = searchParams.get("mode") || "explanation";
 
   const aiData = location.state?.result;
 
-  const explanation = aiData?.explanation;
-  const summary = aiData?.summary;
+  useEffect(() => {
+    const explanationFromStorage = localStorage.getItem("aiExplanation") || "";
+    const summaryFromStorage = localStorage.getItem("aiSummary") || "";
+
+    setSavedExplanation(explanationFromStorage);
+    setSavedSummary(summaryFromStorage);
+  }, []);
+
+  const explanation = aiData?.explanation || savedExplanation;
+  const summary = aiData?.summary || savedSummary;
 
   const content =
     mode === "explanation"
-      ? explanation || "No explanation available yet."
-      : summary || "No summary available yet.";
+      ? explanation || "No explanation available yet. Generate study materials first."
+      : summary || "No summary available yet. Generate study materials first.";
 
   useEffect(() => {
     const fetchHistory = async () => {
@@ -31,7 +41,6 @@ const Explanations = () => {
         if (!res.ok) return;
 
         const data = await res.json();
-
         setPreviousItems(data);
       } catch (err) {
         console.error("History fetch failed:", err);
@@ -43,7 +52,6 @@ const Explanations = () => {
 
   return (
     <div className="max-w-3xl mx-auto animate-fade-in">
-      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl">📖 Study Content</h1>
 
@@ -80,7 +88,6 @@ const Explanations = () => {
         </button>
       </div>
 
-      {/* Content */}
       <AnimatePresence mode="wait">
         <motion.div
           key={mode}
@@ -97,7 +104,6 @@ const Explanations = () => {
         </motion.div>
       </AnimatePresence>
 
-      {/* Buttons */}
       <div className="flex flex-wrap gap-3 mb-8">
         <button
           onClick={() =>
@@ -110,10 +116,8 @@ const Explanations = () => {
           <ArrowRightLeft className="w-4 h-4" />
           Convert to {mode === "explanation" ? "Summary" : "Explanation"}
         </button>
-
       </div>
 
-      {/* History */}
       <div className="glass-card rounded-xl p-5">
         <h3 className="text-lg mb-3 flex items-center gap-2">
           <History className="w-5 h-5 text-muted-foreground" />
@@ -135,9 +139,7 @@ const Explanations = () => {
                   <p className="text-sm font-medium text-foreground">
                     {item.title}
                   </p>
-                  <p className="text-xs text-muted-foreground">
-                    {item.type}
-                  </p>
+                  <p className="text-xs text-muted-foreground">{item.type}</p>
                 </div>
 
                 <span className="text-xs text-muted-foreground">

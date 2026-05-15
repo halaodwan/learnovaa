@@ -1,51 +1,60 @@
 const Groq = require("groq-sdk");
 
 const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY
+  apiKey: process.env.GROQ_API_KEY,
 });
 
-const generateFlashcards = async (req, res) => {
+const generateStudyMaterials = async (req, res) => {
   try {
     const { topic } = req.body;
 
     if (!topic) {
       return res.status(400).json({
         success: false,
-        message: "Topic is required"
+        message: "Topic is required",
       });
     }
 
-    const completion =
-      await groq.chat.completions.create({
-        messages: [
-          {
-            role: "user",
-            content: `
-Create 5 flashcards about ${topic}.
+    const completion = await groq.chat.completions.create({
+      messages: [
+        {
+          role: "user",
+          content: `
+Create study materials about: ${topic}
 
 Return ONLY valid JSON.
-No explanation.
 No markdown.
-No \`\`\`json.
+No explanation.
+No code block.
 
-Format:
+Use this exact structure:
 
-[
-  {
-    "question": "",
-    "answer": ""
-  }
-]
-`
-          }
-        ],
-        model: "llama-3.1-8b-instant"
-      });
+{
+  "summary": "",
+  "explanation": "",
+  "flashcards": [
+    {
+      "question": "",
+      "answer": ""
+    }
+  ],
+  "examQuestions": [
+    {
+      "question": "",
+      "answer": ""
+    }
+  ]
+}
 
-    const text =
-      completion.choices[0].message.content;
+Make 5 flashcards and 5 exam questions.
+`,
+        },
+      ],
+      model: "llama-3.1-8b-instant",
+    });
 
-    // تنظيف النص لو رجع markdown
+    const text = completion.choices[0].message.content;
+
     const cleanedText = text
       .replace(/```json/g, "")
       .replace(/```/g, "")
@@ -55,19 +64,18 @@ Format:
 
     res.json({
       success: true,
-      data: response
+      data: response,
     });
-
   } catch (error) {
     console.log("Groq Error:", error);
 
     res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message,
     });
   }
 };
 
 module.exports = {
-  generateFlashcards
+  generateStudyMaterials,
 };

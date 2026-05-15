@@ -204,8 +204,8 @@ function Home() {
       youtubeLink.trim() !== ""
         ? youtubeLink.trim()
         : contentText.trim() !== ""
-          ? contentText.trim()
-          : uploadedFileName.trim();
+        ? contentText.trim()
+        : uploadedFileName.trim();
 
     if (sourceText === "") {
       alert("Please paste text, add a YouTube link, or upload a file first.");
@@ -216,22 +216,31 @@ function Home() {
       setAiLoading(true);
       setAiResult("");
 
-      const response = await fetch(`${API_URL}/ai/generate`, {
+      const response = await fetch(`${API_URL}/ai/study-materials`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          content: sourceText,
+          topic: sourceText,
         }),
       });
 
       const data = await response.json();
 
-      if (response.ok) {
-        setAiResult(data.result);
-        alert("AI study materials generated!");
-        console.log("AI RESULT:", data.result);
+      if (response.ok && data.success) {
+        localStorage.setItem("aiSummary", data.data.summary);
+        localStorage.setItem("aiExplanation", data.data.explanation);
+        localStorage.setItem(
+          "aiFlashcards",
+          JSON.stringify(data.data.flashcards)
+        );
+        localStorage.setItem(
+          "aiExamQuestions",
+          JSON.stringify(data.data.examQuestions)
+        );
+
+        alert("Study materials generated successfully!");
       } else {
         alert("AI generation failed.");
         console.log(data);
@@ -438,8 +447,8 @@ function Home() {
                 {planRunning
                   ? "Pause"
                   : planStarted
-                    ? "Resume"
-                    : "Start Study Plan"}
+                  ? "Resume"
+                  : "Start Study Plan"}
               </button>
 
               <button

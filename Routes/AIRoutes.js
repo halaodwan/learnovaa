@@ -3,23 +3,13 @@ const express = require("express");
 const router = express.Router();
 
 const {
-
-  generateFlashcards
-
+  generateStudyMaterials,
 } = require("../controllers/AIController");
 
-router.post(
-
-  "/flashcards",
-
-  generateFlashcards
-
-);
+router.post("/study-materials", generateStudyMaterials);
 
 router.get("/", (req, res) => {
-
   res.send("AI ROUTE WORKING");
-
 });
 
 module.exports = router;
