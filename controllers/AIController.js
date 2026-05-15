@@ -1,57 +1,85 @@
-const OpenAI = require("openai");
+const Groq = require("groq-sdk");
 
-const client = new OpenAI({
-  apiKey: process.env.DEEPSEEK_API_KEY,
-  baseURL: "https://api.deepseek.com",
+const groq = new Groq({
+
+  apiKey: process.env.GROQ_API_KEY
+
 });
 
-const generateStudyMaterials = async (req, res) => {
+const generateFlashcards = async (req, res) => {
+
   try {
-    const { content } = req.body;
 
-    if (!content) {
-      return res.status(400).json({
-        message: "Content is required",
-      });
-    }
+    const { topic } = req.body;
 
-    const response = await client.chat.completions.create({
-      model: "deepseek-chat",
-      messages: [
-        {
-          role: "system",
-          content:
-            "You are an AI study assistant. Generate clear study materials for students.",
-        },
-        {
-          role: "user",
-          content: `
-Create study materials from this content:
+    const completion =
 
-${content}
+      await groq.chat.completions.create({
 
-Return:
-1. Summary
-2. Explanation
-3. 5 Flashcards as question and answer
-4. 5 Exam questions
-          `,
-        },
-      ],
-    });
+        messages: [
 
-    res.status(200).json({
-      result: response.choices[0].message.content,
-    });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({
-      message: "AI generation failed",
-      error: error.message,
-    });
+          {
+
+            role: "user",
+
+            content: `
+
+Create 5 flashcards about ${topic}.
+
+Return ONLY valid JSON like this:
+
+[
+
+  {
+
+    "question": "",
+
+    "answer": ""
+
   }
+
+]
+
+`
+
+          }
+
+        ],
+
+        model: "llama-3.1-8b-instant"
+
+      });
+
+   const text=
+      completion.choices[0].message.content;
+    const response=JSON.parse(text);
+      
+    res.json({
+
+      success: true,
+
+      data: response
+
+    });
+
+  } catch (error) {
+
+    console.log(error);
+
+    res.status(500).json({
+
+      success: false,
+
+      message: "AI Error"
+
+    });
+
+  }
+
 };
 
 module.exports = {
-  generateStudyMaterials,
+
+  generateFlashcards
+
 };
