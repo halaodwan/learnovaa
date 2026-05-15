@@ -37,6 +37,9 @@ const Dashboard = () => {
   const [flashcardsCount, setFlashcardsCount] = useState(0);
   const [examsCount, setExamsCount] = useState(0);
 
+  const [studyToday, setStudyToday] = useState(0);
+  const [studyWeek, setStudyWeek] = useState(0);
+
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
@@ -48,9 +51,25 @@ const Dashboard = () => {
         const flashcardsData = await flashcardsRes.json();
         const examsData = await examsRes.json();
 
-        setContentsCount(Array.isArray(contentsData) ? contentsData.length : 0);
-        setFlashcardsCount(Array.isArray(flashcardsData) ? flashcardsData.length : 0);
-        setExamsCount(Array.isArray(examsData) ? examsData.length : 0);
+        const contentsArray = Array.isArray(contentsData) ? contentsData : [];
+        const flashcardsArray = Array.isArray(flashcardsData)
+          ? flashcardsData
+          : [];
+        const examsArray = Array.isArray(examsData) ? examsData : [];
+
+        setContentsCount(contentsArray.length);
+        setFlashcardsCount(flashcardsArray.length);
+        setExamsCount(examsArray.length);
+
+        const todayHours =
+          examsArray.length * 1 +
+          contentsArray.length * 0.5 +
+          flashcardsArray.length * 0.25;
+
+        const weekHours = todayHours * 5;
+
+        setStudyToday(todayHours.toFixed(1));
+        setStudyWeek(weekHours.toFixed(1));
       } catch (error) {
         console.error("Dashboard fetch error:", error);
       }
@@ -80,20 +99,24 @@ const Dashboard = () => {
     },
     {
       label: "Study Hours Today",
-      value: "2.5h",
+      value: `${studyToday}h`,
       icon: Clock,
       color: "bg-primary/10 text-primary",
     },
     {
       label: "Study Hours This Week",
-      value: "12h",
+      value: `${studyWeek}h`,
       icon: CalendarDays,
       color: "bg-destructive/10 text-destructive",
     },
   ];
 
   const toggleTask = (id) => {
-    setTasks(tasks.map((t) => (t.id === id ? { ...t, done: !t.done } : t)));
+    setTasks(
+      tasks.map((t) =>
+        t.id === id ? { ...t, done: !t.done } : t
+      )
+    );
   };
 
   const addTask = () => {
@@ -121,26 +144,32 @@ const Dashboard = () => {
     <div className="animate-fade-in p-4">
       <h1 className="text-2xl mb-6">📊 Dashboard</h1>
 
-      {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
         {stats.map(({ label, value, icon: Icon, color }) => (
-          <div key={label} className="glass-card rounded-xl p-4 text-center">
+          <div
+            key={label}
+            className="glass-card rounded-xl p-4 text-center"
+          >
             <div
               className={`w-10 h-10 rounded-lg ${color} flex items-center justify-center mx-auto mb-2`}
             >
               <Icon className="w-5 h-5" />
             </div>
+
             <p className="text-2xl font-heading font-bold text-foreground">
               {value}
             </p>
-            <p className="text-xs text-muted-foreground mt-1">{label}</p>
+
+            <p className="text-xs text-muted-foreground mt-1">
+              {label}
+            </p>
           </div>
         ))}
       </div>
 
-      {/* Quick Access */}
       <div className="glass-card rounded-xl p-5 mb-6">
         <h3 className="text-lg mb-3">⚡ Quick Access</h3>
+
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {quickLinks.map(({ label, icon: Icon, path }) => (
             <Link
@@ -155,7 +184,6 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Task List */}
       <div className="glass-card rounded-xl p-5">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg">✅ Task List</h3>
@@ -200,7 +228,9 @@ const Dashboard = () => {
             <div
               key={task.id}
               className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${
-                task.done ? "bg-edu-success/5" : "bg-muted/50 hover:bg-muted"
+                task.done
+                  ? "bg-edu-success/5"
+                  : "bg-muted/50 hover:bg-muted"
               }`}
             >
               <button onClick={() => toggleTask(task.id)}>
