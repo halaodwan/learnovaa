@@ -111,10 +111,6 @@ const Explanations = () => {
           Convert to {mode === "explanation" ? "Summary" : "Explanation"}
         </button>
 
-        <button className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-edu-warning text-edu-warning-foreground font-medium text-sm hover:opacity-90 transition-opacity">
-          <Lightbulb className="w-4 h-4" />
-          Explain Simpler
-        </button>
       </div>
 
       {/* History */}
