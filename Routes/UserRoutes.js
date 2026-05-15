@@ -1,27 +1,25 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
 
 const {
+  createUser,
+  loginUser,
   getAllUsers,
   getUserById,
-  createUser,
   updateUser,
-  deleteUser,
-  loginUser
-} = require('../controllers/UserController');
+  deleteUser
+} = require("../controllers/UserController");
 
-const auth = require('../middleware/auth.js');
+router.post("/", createUser);
 
+router.post("/login", loginUser);
 
-// 🔓 Public routes
-router.post('/login', loginUser);
-router.post('/', createUser);
+router.get("/", getAllUsers);
 
+router.get("/:id", getUserById);
 
-// 🔐 Protected routes (JWT required)
-router.get('/', auth, getAllUsers);
-router.get('/:id', auth, getUserById);
-router.put('/:id', auth, updateUser);
-router.delete('/:id', auth, deleteUser);
+router.put("/:id", updateUser);
+
+router.delete("/:id", deleteUser);
 
 module.exports = router;

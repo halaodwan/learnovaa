@@ -1,102 +1,205 @@
-const { User } = require('../models');
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 
-// GET all users
+const db = require("../models");
+const User = db.User;
+
+/* =========================
+   GET ALL USERS
+========================= */
 const getAllUsers = async (req, res) => {
   try {
-    const users = await User.findAll();
-    res.json(users);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
-
-// GET user by id
-const getUserById = async (req, res) => {
-  try {
-    const oneUser = await User.findByPk(req.params.id);
-    res.json(oneUser);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
-
-// CREATE user (Register + hash password)
-const createUser = async (req, res) => {
-  try {
-    const newUser = await User.create(req.body);
-
-    res.status(201).json(newUser);
-  } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
-};
-
-// LOGIN (NEW - JWT)
-const loginUser = async (req, res) => {
-  try {
-    const { email, password } = req.body;
-
-    const foundUser = await User.scope(null).findOne({
-      where: { email }
+    const users = await User.findAll({
+      attributes: { exclude: ["password"] }
     });
 
-    if (!foundUser) {
+    res.json(users);
+
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+/* =========================
+   GET USER BY ID
+========================= */
+const getUserById = async (req, res) => {
+  try {
+    const user = await User.findByPk(req.params.id, {
+      attributes: { exclude: ["password"] }
+    });
+
+    if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    const isMatch = await bcrypt.compare(
-      password,
-      foundUser.password
+    res.json(user);
+
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+/* =========================
+   REGISTER USER
+========================= */
+const createUser = async (req, res) => {
+  try {
+    const { firstName, lastName, email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({
+        message: "Email and password required"
+      });
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+
+    const existingUser = await User.findOne({
+      where: { email: cleanEmail }
+    });
+
+    if (existingUser) {
+      return res.status(400).json({
+        message: "Email already exists"
+      });
+    }
+
+    const newUser = await User.create({
+      firstName,
+      lastName,
+      email: cleanEmail,
+      password
+    });
+
+    const token = jwt.sign(
+      { id: newUser.id, email: newUser.email },
+      "secretkey",
+      { expiresIn: "1h" }
     );
 
+    res.status(201).json({
+      message: "User created successfully",
+      token,
+      user: {
+        id: newUser.id,
+        firstName: newUser.firstName,
+        lastName: newUser.lastName,
+        email: newUser.email
+      }
+    });
+
+  } catch (err) {
+    console.log("REGISTER ERROR:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+/* =========================
+   LOGIN USER
+========================= */
+const loginUser = async (req, res) => {
+  try {
+    let { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({
+        message: "Email and password required"
+      });
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+
+    const user = await User. unscoped().findOne({
+      where: { email: cleanEmail }
+    });
+
+    console.log("EMAIL:", cleanEmail);
+    console.log("USER FOUND:", user);
+    console.log("INPUT PASSWORD:", JSON.stringify(password));
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found"
+      });
+    }
+
+    console.log("DB PASSWORD:", user.password);
+
+    const isMatch = await bcrypt.compare(password, user.password);
+
+    console.log("PASSWORD MATCH:", isMatch);
+
     if (!isMatch) {
-      return res.status(401).json({ message: "Wrong password" });
+      return res.status(401).json({
+        message: "Wrong password"
+      });
     }
 
     const token = jwt.sign(
-      {
-        id: foundUser.id,
-        email: foundUser.email
-      },
-      process.env.JWT_SECRET,
+      { id: user.id, email: user.email },
+      "secretkey",
       { expiresIn: "1h" }
     );
 
     res.json({
+      message: "Login successful",
       token,
-      user: foundUser
+      user: {
+        id: user.id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email
+      }
     });
 
   } catch (err) {
+    console.log("LOGIN ERROR:", err);
     res.status(500).json({ error: err.message });
   }
 };
 
-// UPDATE user
+/* =========================
+   UPDATE USER
+========================= */
 const updateUser = async (req, res) => {
   try {
-    await User.update(req.body, {
+    const updated = await User.update(req.body, {
       where: { id: req.params.id }
     });
 
-    res.json({ message: 'User updated successfully' });
+    if (!updated[0]) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.json({ message: "User updated successfully" });
+
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    console.log(err);
+    res.status(500).json({ error: err.message });
   }
 };
 
-// DELETE user
+/* =========================
+   DELETE USER
+========================= */
 const deleteUser = async (req, res) => {
   try {
-    await User.destroy({
+    const deleted = await User.destroy({
       where: { id: req.params.id }
     });
 
-    res.json({ message: 'User deleted successfully' });
+    if (!deleted) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.json({ message: "User deleted successfully" });
+
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    console.log(err);
+    res.status(500).json({ error: err.message });
   }
 };
 

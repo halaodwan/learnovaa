@@ -1,133 +1,161 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
+import axios from "axios";
 
 export default function LoginModal({ onClose, onLoginSuccess }) {
+
+  const [isRegister, setIsRegister] = useState(false);
+
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
   const navigate = useNavigate();
 
-  const handleLogin = (e) => {
+  /* =========================
+     LOGIN
+  ========================= */
+  const handleLogin = async (e) => {
     e.preventDefault();
 
-    if (!firstName || !lastName || !email || !password) {
-      alert("Please fill all fields");
-      return;
+    try {
+      const res = await axios.post(
+        "http://localhost:3001/users/login",
+        { email, password }
+      );
+
+      // token
+      localStorage.setItem("token", res.data.token);
+
+      // user (اختياري)
+      localStorage.setItem("user", JSON.stringify(res.data.user));
+
+      alert("Login success");
+
+      onClose?.();
+      onLoginSuccess?.();
+
+      navigate("/");
+
+    } catch (err) {
+      console.log(err.response?.data);
+      alert(err.response?.data?.message || "Login failed");
     }
+  };
 
-    console.log({ firstName, lastName, email, password });
+  /* =========================
+     REGISTER
+  ========================= */
+  const handleRegister = async (e) => {
+    e.preventDefault();
 
-    if (onClose) onClose();
-    if (typeof onLoginSuccess === "function") onLoginSuccess();
-    if (onLoginSuccess) onLoginSuccess();
-    if (onClose) onClose();
+    try {
+      const res = await axios.post(
+        "http://localhost:3001/users",
+        {
+          firstName,
+          lastName,
+          email,
+          password
+        }
+      );
 
-    navigate("/");
+      alert("Account created successfully");
+
+      
+      setIsRegister(false);
+
+      
+      setFirstName("");
+      setLastName("");
+      setEmail("");
+      setPassword("");
+
+    } catch (err) {
+      console.log(err.response?.data);
+      alert(err.response?.data?.message || "Register failed");
+    }
   };
 
   return (
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
+
       <motion.div
         initial={{ scale: 0.8, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ duration: 0.3 }}
-        className="bg-white w-full max-w-lg rounded-3xl shadow-2xl p-6 max-h-[90vh] overflow-y-auto"
         className="bg-white w-full max-w-lg rounded-3xl shadow-2xl p-6"
       >
-        {/* Header */}
-        <div className="flex justify-center mb-4">
-          <div className="bg-slate-800 text-white p-4 rounded-2xl text-xl">
-            🎓
-          </div>
-        </div>
 
         <h2 className="text-center text-2xl font-bold text-slate-800">
-          Welcome to Learnova
+          {isRegister ? "Create Account" : "Welcome learnova"}
         </h2>
 
         <p className="text-center text-gray-500 mb-6">
-          Sign in to continue learning
+          {isRegister ? "Sign up to start learning" : "Sign in to continue"}
         </p>
 
-        {/* Form */}
-        <form onSubmit={handleLogin} className="space-y-4">
+        {/* FORM */}
+        <form onSubmit={isRegister ? handleRegister : handleLogin} className="space-y-4">
 
-          {/* First Name */}
-          <div>
-            <label className="text-sm text-gray-600 block mb-1">
-              First Name
-            </label>
-            <input
-              type="text"
-              value={firstName}
-              onChange={(e) => setFirstName(e.target.value)}
-              className="w-full px-4 h-10 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-slate-800"
-              autoComplete="off"
-            />
-          </div>
+          {/* REGISTER ONLY */}
+          {isRegister && (
+            <>
+              <input
+                placeholder="First Name"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                className="w-full px-4 h-10 rounded-xl border"
+              />
 
-          {/* Last Name */}
-          <div>
-            <label className="text-sm text-gray-600 block mb-1">
-              Last Name
-            </label>
-            <input
-              type="text"
-              value={lastName}
-              onChange={(e) => setLastName(e.target.value)}
-              className="w-full px-4 h-10 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-slate-800"
-              autoComplete="off"
-            />
-          </div>
+              <input
+                placeholder="Last Name"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                className="w-full px-4 h-10 rounded-xl border"
+              />
+            </>
+          )}
 
-          {/* Email */}
-          <div>
-            <label className="text-sm text-gray-600 block mb-1">
-              Email
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 h-10 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-slate-800"
-              autoComplete="off"
-            />
-          </div>
+          {/* EMAIL */}
+          <input
+            placeholder="Email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full px-4 h-10 rounded-xl border"
+          />
 
-          {/* Password */}
-          <div>
-            <label className="text-sm text-gray-600 block mb-1">
-              Password
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 h-10 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-slate-800"
-              autoComplete="off"
-            />
-          </div>
+          {/* PASSWORD */}
+          <input
+            placeholder="Password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full px-4 h-10 rounded-xl border"
+          />
 
+          {/* BUTTON */}
           <button
             type="submit"
-            className="w-full py-3 rounded-xl bg-slate-800 text-white font-semibold hover:bg-slate-900 transition"
+            className="w-full py-3 rounded-xl bg-slate-800 text-white font-semibold"
           >
-            Login
+            {isRegister ? "Create Account" : "Login"}
           </button>
+
         </form>
 
-        {/* Footer */}
-        <div className="flex justify-between mt-4 text-sm text-gray-500">
-          <span className="hover:underline cursor-pointer">
-            Forgot Password?
-          </span>
-          <span className="hover:underline cursor-pointer">
-            Create Account
-          </span>
-        </div>
+        {/* TOGGLE */}
+        <p
+          onClick={() => setIsRegister(!isRegister)}
+          className="text-center mt-4 text-sm text-blue-500 cursor-pointer"
+        >
+          {isRegister ? "Already have an account? Login" : "Create new account"}
+        </p>
+
       </motion.div>
     </div>
   );

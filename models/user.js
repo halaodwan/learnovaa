@@ -77,19 +77,16 @@ module.exports = (sequelize, DataTypes) => {
   }, {
     sequelize,
     modelName: 'User',
-
-    // 🚀 مهم: نخفي الباسورد من أي response
-    defaultScope: {
-      attributes: { exclude: ['password'] }
-    }
+   
   });
 
-  // 🔐 Hash password before create
+      
+  //  Hash password before create
   User.beforeCreate(async (user) => {
     user.password = await bcrypt.hash(user.password, 10);
   });
 
-  // 🔐 Hash password before update (if changed)
+  //  Hash password before update (if changed)
   User.beforeUpdate(async (user) => {
     if (user.changed("password")) {
       user.password = await bcrypt.hash(user.password, 10);
