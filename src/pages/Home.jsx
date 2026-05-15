@@ -260,31 +260,34 @@ function Home() {
     }
 
     try {
-      const response = await fetch(`${API_URL}/questions`, {
+      setAiLoading(true);
+
+      const response = await fetch(`${API_URL}/ai/ask`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          exam_id: 1,
-          type: "ai",
-          question_text: aiQuestion.trim(),
+          question: aiQuestion.trim(),
+          summary: localStorage.getItem("aiSummary") || "",
+          explanation: localStorage.getItem("aiExplanation") || "",
         }),
       });
 
       const data = await response.json();
 
-      if (response.ok) {
-        alert("Question saved successfully!");
-        console.log(data);
+      if (response.ok && data.success) {
+        setAiResult(data.answer);
         setAiQuestion("");
       } else {
-        alert("Failed to save question.");
+        alert("AI answer failed.");
         console.log(data);
       }
     } catch (error) {
       console.error(error);
       alert("Backend connection failed.");
+    } finally {
+      setAiLoading(false);
     }
   };
 
@@ -503,9 +506,7 @@ function Home() {
 
           {aiResult && (
             <div className="bg-white border border-slate-200 rounded-2xl p-4 mb-5 shadow-sm overflow-y-auto max-h-[300px]">
-              <h3 className="font-semibold text-slate-800 mb-2">
-                Generated Study Materials
-              </h3>
+              <h3 className="font-semibold text-slate-800 mb-2">AI Answer</h3>
               <pre className="whitespace-pre-wrap text-sm text-slate-700 font-sans">
                 {aiResult}
               </pre>
@@ -528,7 +529,8 @@ function Home() {
 
             <button
               onClick={sendQuestion}
-              className="bg-[#1e3a8a] hover:bg-[#1a3277] text-white p-3 rounded-xl transition"
+              disabled={aiLoading}
+              className="bg-[#1e3a8a] hover:bg-[#1a3277] disabled:bg-slate-400 text-white p-3 rounded-xl transition"
             >
               <Send size={18} />
             </button>
