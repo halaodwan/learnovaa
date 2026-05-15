@@ -3,9 +3,11 @@ const { Content } = require('../models');
 
 const getAllContent = async (req, res) => {
   try {
-    const content = await Content.findAll({
-      where: { user_id: req.query.user_id }
-    });
+    const options = req.query.user_id
+      ? { where: { user_id: req.query.user_id } }
+      : {};
+
+    const content = await Content.findAll(options);
 
     res.json(content);
   } catch (error) {

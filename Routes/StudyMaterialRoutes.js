@@ -1,4 +1,4 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
 
 const {
@@ -7,12 +7,18 @@ const {
   createStudyMaterial,
   updateStudyMaterial,
   deleteStudyMaterial,
-} = require('../controllers/StudyMaterialController');
+} = require("../controllers/StudyMaterialController");
 
-router.get('/', getAllStudyMaterials);
-router.get('/:id', getStudyMaterialById);
-router.post('/', createStudyMaterial);
-router.put('/:id', updateStudyMaterial);
-router.delete('/:id', deleteStudyMaterial);
+router.get("/", getAllStudyMaterials);
+
+router.get("/history", getAllStudyMaterials);
+
+router.post("/", createStudyMaterial);
+
+router.get("/:id", getStudyMaterialById);
+
+router.put("/:id", updateStudyMaterial);
+
+router.delete("/:id", deleteStudyMaterial);
 
 module.exports = router;

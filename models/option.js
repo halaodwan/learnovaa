@@ -1,13 +1,13 @@
 module.exports = (sequelize, DataTypes) => {
   const Option = sequelize.define("Option", {
-    text: DataTypes.STRING,
-    isCorrect: DataTypes.BOOLEAN,
-    questionId: DataTypes.INTEGER,
+    question_id: DataTypes.INTEGER,
+    option_text: DataTypes.STRING,
+    is_correct: DataTypes.BOOLEAN,
   });
 
   Option.associate = (models) => {
     Option.belongsTo(models.Question, {
-      foreignKey: "questionId",
+      foreignKey: "question_id",
     });
   };
 

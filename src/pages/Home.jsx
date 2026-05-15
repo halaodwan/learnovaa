@@ -54,25 +54,33 @@ function Home() {
   };
 
   const getSavedId = (data) => {
-    return data?.data?.id || data?.id || data?.insertId || null;
+    return (
+      data?.id ||
+      data?.data?.id ||
+      data?.material?.id ||
+      data?.exam?.id ||
+      null
+    );
   };
 
-  const createMaterial = async (title) => {
-    const data = await requestJson(`${API_URL}/materials`, {
+  const createMaterial = async (content) => {
+    const data = await requestJson(`${API_URL}/study-materials`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
         user_id: userId,
-        title,
+        content: content.slice(0, 255) || "Generated Study Material",
+        type: "ai",
+        created_at: new Date().toISOString(),
       }),
     });
 
     const id = getSavedId(data);
 
     if (!id) {
-      throw new Error("Material was created, but no material id was returned.");
+      throw new Error("Study material was created, but no id was returned.");
     }
 
     return id;
@@ -87,14 +95,16 @@ function Home() {
       body: JSON.stringify({
         user_id: userId,
         material_id: materialId,
-        title: "Generated Exam",
+        type: "AI",
+        number_of_questions: 5,
+        duration: 15,
       }),
     });
 
     const id = getSavedId(data);
 
     if (!id) {
-      throw new Error("Exam was created, but no exam id was returned.");
+      throw new Error("Exam was created, but no id was returned.");
     }
 
     return id;
@@ -214,7 +224,7 @@ function Home() {
         console.log(data);
       } catch (error) {
         console.error(error);
-        alert("Failed to save study plan.");
+        alert(error.message || "Failed to save study plan.");
       }
     }
 
@@ -242,7 +252,7 @@ function Home() {
       setUploadedFileName(data.fileName || data?.data?.fileName || file.name);
     } catch (error) {
       console.error(error);
-      alert("Failed to upload file.");
+      alert(error.message || "Failed to upload file.");
     }
   };
 
@@ -279,8 +289,7 @@ function Home() {
       }
 
       const generated = aiData.data;
-
-      const materialId = await createMaterial(sourceText.slice(0, 80));
+      const materialId = await createMaterial(sourceText);
       const examId = await createExam(materialId);
 
       await requestJson(`${API_URL}/contents`, {
@@ -309,43 +318,60 @@ function Home() {
         }),
       });
 
-      await Promise.all(
-        (generated.flashcards || []).map((card) =>
-          requestJson(`${API_URL}/flashcards`, {
+      for (const card of generated.flashcards || []) {
+        await requestJson(`${API_URL}/flashcards`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            user_id: userId,
+            material_id: materialId,
+            question: card.question || "",
+            answer: card.answer || "",
+          }),
+        });
+      }
+
+      for (const examQuestion of generated.examQuestions || []) {
+        const savedQuestion = await requestJson(`${API_URL}/questions`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            exam_id: examId,
+            type: examQuestion.type || "Essay",
+            question_text: examQuestion.question || "",
+          }),
+        });
+
+        const questionId =
+          savedQuestion.id ||
+          savedQuestion?.data?.id ||
+          savedQuestion?.question?.id ||
+          savedQuestion?.data?.question?.id;
+
+        if (questionId) {
+          await requestJson(`${API_URL}/answers`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
               user_id: userId,
-              material_id: materialId,
-              question: card.question,
-              answer: card.answer,
+              question_id: questionId,
+              selected_option_id: null,
+              answer_text: examQuestion.answer || "",
+              is_correct: true,
             }),
-          })
-        )
-      );
-
-      await Promise.all(
-        (generated.examQuestions || []).map((question) =>
-          requestJson(`${API_URL}/questions`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              exam_id: examId,
-              type: question.type || "Essay",
-              question_text: question.question,
-              answer: question.answer,
-            }),
-          })
-        )
-      );
+          });
+        }
+      }
 
       setCurrentMaterialId(materialId);
       setCurrentExamId(examId);
-      setAiResult(generated.summary || generated.explanation || "Done.");
+      setAiResult("");
 
       alert("Study materials saved to database successfully!");
     } catch (error) {
@@ -362,11 +388,6 @@ function Home() {
       return;
     }
 
-    if (!currentMaterialId) {
-      alert("Please generate study materials first.");
-      return;
-    }
-
     try {
       setAiLoading(true);
 
@@ -377,12 +398,15 @@ function Home() {
         },
         body: JSON.stringify({
           question: aiQuestion.trim(),
+          summary: contentText,
+          explanation: aiResult,
           material_id: currentMaterialId,
+          exam_id: currentExamId,
         }),
       });
 
       if (data.success) {
-        setAiResult(data.answer);
+        setAiResult(data.answer || "No answer generated.");
         setAiQuestion("");
       } else {
         alert("AI answer failed.");
@@ -390,7 +414,7 @@ function Home() {
       }
     } catch (error) {
       console.error(error);
-      alert("AI answer failed.");
+      alert(error.message || "AI answer failed.");
     } finally {
       setAiLoading(false);
     }
@@ -552,7 +576,11 @@ function Home() {
                 className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl py-3 font-medium flex items-center justify-center gap-2 transition"
               >
                 {planRunning ? <Pause size={18} /> : <Play size={18} />}
-                {planRunning ? "Pause" : planStarted ? "Resume" : "Start Study Plan"}
+                {planRunning
+                  ? "Pause"
+                  : planStarted
+                  ? "Resume"
+                  : "Start Study Plan"}
               </button>
 
               <button
@@ -622,3 +650,4 @@ function Home() {
 }
 
 export default Home;
+

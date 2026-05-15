@@ -12,23 +12,72 @@ export default function ExamPage() {
   const [questionCount, setQuestionCount] = useState(5);
 
   const [questions, setQuestions] = useState([]);
+  const [selectedExamId, setSelectedExamId] = useState(null);
 
   const questionsPerPage = 2;
 
   useEffect(() => {
-    const savedQuestions =
-      JSON.parse(localStorage.getItem("aiExamQuestions")) || [];
+    const fetchExamData = async () => {
+      try {
+        const questionsRes = await fetch("http://localhost:3000/questions");
+        const answersRes = await fetch("http://localhost:3000/answers");
 
-    const formattedQuestions = savedQuestions.map((q) => ({
-      q: q.question,
-      answer: q.answer || "",
-      type: "Essay",
-      options: [],
-      correct: null,
-    }));
+        if (!questionsRes.ok) {
+          throw new Error("Failed to fetch questions");
+        }
 
-    setQuestions(formattedQuestions);
+        const questionsData = await questionsRes.json();
+        const answersData = answersRes.ok ? await answersRes.json() : [];
+
+        const formattedQuestions = questionsData.map((q) => {
+          const relatedAnswer = answersData.find(
+            (a) => a.question_id === q.id
+          );
+
+          return {
+            id: q.id,
+            exam_id: q.exam_id,
+            q: q.question_text || "No question text",
+            answer: relatedAnswer?.answer_text || q.answer || "",
+            type: q.type || "Essay",
+          };
+        });
+
+        setQuestions(formattedQuestions);
+
+        if (formattedQuestions.length > 0) {
+          setSelectedExamId(
+            formattedQuestions[formattedQuestions.length - 1].exam_id
+          );
+        }
+      } catch (err) {
+        console.error("Exam data fetch failed:", err);
+      }
+    };
+
+    fetchExamData();
   }, []);
+
+  const examIds = [
+    ...new Set(
+      questions
+        .map((q) => q.exam_id)
+        .filter((id) => id !== null && id !== undefined)
+    ),
+  ].reverse();
+
+  const selectedQuestions = selectedExamId
+    ? questions.filter((q) => q.exam_id === selectedExamId)
+    : questions;
+
+  const filteredQuestions = selectedQuestions.slice(0, questionCount);
+
+  const currentQuestions = filteredQuestions.slice(
+    page * questionsPerPage,
+    page * questionsPerPage + questionsPerPage
+  );
+
+  const totalPages = Math.ceil(filteredQuestions.length / questionsPerPage);
 
   useEffect(() => {
     if (!started || submitted) return;
@@ -69,14 +118,13 @@ export default function ExamPage() {
     return `${m}:${s.toString().padStart(2, "0")}`;
   };
 
-  const filteredQuestions = questions.slice(0, questionCount);
-
-  const currentQuestions = filteredQuestions.slice(
-    page * questionsPerPage,
-    page * questionsPerPage + questionsPerPage
-  );
-
-  const totalPages = Math.ceil(filteredQuestions.length / questionsPerPage);
+  const handleExamChange = (examId) => {
+    setSelectedExamId(Number(examId));
+    setStarted(false);
+    setSubmitted(false);
+    setAnswers({});
+    setPage(0);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -91,13 +139,31 @@ export default function ExamPage() {
               AI Exam Settings
             </h2>
 
+            {examIds.length > 0 && (
+              <div>
+                <label>Select Exam</label>
+
+                <select
+                  value={selectedExamId || ""}
+                  onChange={(e) => handleExamChange(e.target.value)}
+                  className="w-full p-2 mt-1 bg-slate-700 rounded"
+                >
+                  {examIds.map((id) => (
+                    <option key={id} value={id}>
+                      Exam {id}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             <div>
               <label>Number of Questions</label>
 
               <input
                 type="number"
                 min="1"
-                max={questions.length || 5}
+                max={selectedQuestions.length || 5}
                 value={questionCount}
                 onChange={(e) => setQuestionCount(Number(e.target.value))}
                 className="w-full p-2 mt-1 bg-slate-700 rounded"
@@ -116,7 +182,7 @@ export default function ExamPage() {
               />
             </div>
 
-            {questions.length === 0 && (
+            {selectedQuestions.length === 0 && (
               <p className="text-sm text-yellow-300">
                 No AI exam questions yet. Go to Home and click Generate Study
                 Materials first.
@@ -125,7 +191,7 @@ export default function ExamPage() {
 
             <button
               onClick={startExam}
-              disabled={questions.length === 0}
+              disabled={selectedQuestions.length === 0}
               className="w-full bg-blue-600 disabled:bg-slate-500 py-3 rounded-xl mt-4"
             >
               Start Exam
@@ -156,7 +222,7 @@ export default function ExamPage() {
 
                 return (
                   <div
-                    key={qIndex}
+                    key={q.id || qIndex}
                     className="bg-slate-800 text-white p-6 rounded-2xl shadow-lg backdrop-blur"
                   >
                     <h2 className="font-semibold mb-4 !text-white">
@@ -179,7 +245,9 @@ export default function ExamPage() {
                     {submitted && (
                       <div className="mt-4 bg-green-700/40 p-3 rounded-xl">
                         <p className="font-semibold">Suggested Answer:</p>
-                        <p className="text-sm mt-1">{q.answer}</p>
+                        <p className="text-sm mt-1">
+                          {q.answer || "No suggested answer saved."}
+                        </p>
                       </div>
                     )}
                   </div>

@@ -1,9 +1,7 @@
 module.exports = (sequelize, DataTypes) => {
   const Question = sequelize.define("Question", {
-    question: DataTypes.STRING,
     type: DataTypes.STRING,
-    difficulty: DataTypes.STRING,
-    correctAnswer: DataTypes.INTEGER,
+    question_text: DataTypes.STRING,
     exam_id: DataTypes.INTEGER,
   });
 
@@ -13,7 +11,7 @@ module.exports = (sequelize, DataTypes) => {
     });
 
     Question.hasMany(models.Option, {
-      foreignKey: "questionId",
+      foreignKey: "question_id",
       as: "Options",
     });
   };

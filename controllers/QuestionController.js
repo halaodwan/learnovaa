@@ -43,7 +43,15 @@ const getQuestionById = async (req, res) => {
 // CREATE question
 const createQuestion = async (req, res) => {
   try {
-    const question = await Question.create(req.body);
+    const { exam_id, type } = req.body;
+    const question_text = req.body.question_text || req.body.question || "";
+
+    const question = await Question.create({
+      exam_id,
+      type,
+      question_text,
+    });
+
     res.status(201).json(question);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -59,7 +67,14 @@ const updateQuestion = async (req, res) => {
       return res.status(404).json({ message: "Question not found" });
     }
 
-    await question.update(req.body);
+    const { exam_id, type } = req.body;
+    const question_text = req.body.question_text || req.body.question;
+
+    await question.update({
+      ...(exam_id !== undefined && { exam_id }),
+      ...(type !== undefined && { type }),
+      ...(question_text !== undefined && { question_text }),
+    });
 
     res.status(200).json({
       message: "Question updated successfully",

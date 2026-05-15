@@ -13,24 +13,48 @@ const Flashcards = () => {
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
+  const [selectedMaterialId, setSelectedMaterialId] = useState(null);
 
   useEffect(() => {
-    const savedCards = JSON.parse(localStorage.getItem("aiFlashcards")) || [];
-
-    if (savedCards.length > 0) {
-      setCards(savedCards);
-      setSets(savedCards);
-      return;
-    }
-
     axios
       .get("http://localhost:3000/flashcards")
       .then((res) => {
-        setCards(res.data);
-        setSets(res.data);
+        const data = Array.isArray(res.data) ? res.data : [];
+
+        setSets(data);
+
+        if (data.length > 0) {
+          const lastMaterialId = data[data.length - 1].material_id;
+          setSelectedMaterialId(lastMaterialId);
+
+          const filteredCards = data.filter(
+            (card) => card.material_id === lastMaterialId
+          );
+
+          setCards(filteredCards);
+        }
       })
       .catch((err) => console.log(err));
   }, []);
+
+  const materialIds = [
+    ...new Set(
+      sets
+        .map((card) => card.material_id)
+        .filter((id) => id !== null && id !== undefined)
+    ),
+  ].reverse();
+
+  const changeMaterial = (materialId) => {
+    const id = Number(materialId);
+
+    setSelectedMaterialId(id);
+    setFlipped(false);
+    setCurrentIndex(0);
+
+    const filteredCards = sets.filter((card) => card.material_id === id);
+    setCards(filteredCards);
+  };
 
   const goNext = () => {
     setFlipped(false);
@@ -56,16 +80,33 @@ const Flashcards = () => {
         </Link>
       </div>
 
+      {materialIds.length > 0 && (
+        <div className="mb-4">
+          <label className="text-sm font-medium text-gray-700">
+            Select generated set
+          </label>
+
+          <select
+            value={selectedMaterialId || ""}
+            onChange={(e) => changeMaterial(e.target.value)}
+            className="w-full border border-gray-300 rounded-xl px-3 py-2 mt-1"
+          >
+            {materialIds.map((id) => (
+              <option key={id} value={id}>
+                Material {id}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
       {cards.length === 0 ? (
         <div className="bg-gray-100 border border-gray-300 rounded-xl p-6 text-center text-gray-600">
           No flashcards yet. Go to Home and click Generate Study Materials.
         </div>
       ) : (
         <>
-          <CardCounter
-            current={currentIndex + 1}
-            total={cards.length}
-          />
+          <CardCounter current={currentIndex + 1} total={cards.length} />
 
           <FlashcardItem
             card={card}
@@ -89,14 +130,14 @@ const Flashcards = () => {
         </h3>
 
         <div className="space-y-2">
-          {sets.length === 0 ? (
+          {cards.length === 0 ? (
             <p className="text-sm text-gray-300">
               No generated flashcards yet.
             </p>
           ) : (
-            sets.map((set, index) => (
+            cards.map((set, index) => (
               <div
-                key={index}
+                key={set.id || index}
                 onClick={() => {
                   setCurrentIndex(index);
                   setFlipped(false);
@@ -108,14 +149,10 @@ const Flashcards = () => {
                     Card {index + 1}
                   </p>
 
-                  <p className="text-xs text-gray-300">
-                    {set.question}
-                  </p>
+                  <p className="text-xs text-gray-300">{set.question}</p>
                 </div>
 
-                <span className="text-xs text-gray-400">
-                  AI
-                </span>
+                <span className="text-xs text-gray-400">AI</span>
               </div>
             ))
           )}
