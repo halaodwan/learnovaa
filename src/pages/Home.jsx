@@ -34,31 +34,35 @@ function Home() {
 
   const userId = 1;
 
+  const getPositiveNumber = (value, fallback = 1) => {
+    const number = Number(value);
+    return Number.isFinite(number) && number >= 1 ? number : fallback;
+  };
+
   useEffect(() => {
-    let interval;
+    if (!planRunning) return;
 
-    if (planRunning) {
-      interval = setInterval(() => {
-        setTimeLeft((prev) => {
-          if (prev > 1) return prev - 1;
+    const interval = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev > 1) return prev - 1;
 
-          if (mode === "study") {
-            setMode("break");
-            return breakMinutes * 60;
-          }
+        if (mode === "study") {
+          setMode("break");
+          return breakMinutes * 60;
+        }
 
-          if (currentSession < totalSessions) {
-            setCurrentSession((prevSession) => prevSession + 1);
-            setMode("study");
-            return studyMinutes * 60;
-          }
+        if (currentSession < totalSessions) {
+          setCurrentSession((prevSession) => prevSession + 1);
+          setMode("study");
+          return studyMinutes * 60;
+        }
 
-          setPlanRunning(false);
-          alert("🎉 Study plan completed!");
-          return 0;
-        });
-      }, 1000);
-    }
+        setPlanRunning(false);
+        setPlanStarted(false);
+        alert("Study plan completed!");
+        return 0;
+      });
+    }, 1000);
 
     return () => clearInterval(interval);
   }, [
@@ -78,8 +82,26 @@ function Home() {
     setPlanRunning(true);
   };
 
+  const resumeStudyPlan = () => {
+    setPlanRunning(true);
+  };
+
   const pauseStudyPlan = () => {
     setPlanRunning(false);
+  };
+
+  const handleMainTimerButton = () => {
+    if (planRunning) {
+      pauseStudyPlan();
+      return;
+    }
+
+    if (planStarted) {
+      resumeStudyPlan();
+      return;
+    }
+
+    startStudyPlan();
   };
 
   const formatPlanTime = (seconds) => {
@@ -95,9 +117,12 @@ function Home() {
   const getSessionProgress = () => {
     const totalTime = mode === "study" ? studyMinutes * 60 : breakMinutes * 60;
 
-    if (totalTime === 0) return 0;
+    if (totalTime <= 0) return 0;
 
-    return Math.round(((totalTime - timeLeft) / totalTime) * 100);
+    return Math.min(
+      100,
+      Math.max(0, Math.round(((totalTime - timeLeft) / totalTime) * 100))
+    );
   };
 
   const resetStudyPlan = async () => {
@@ -120,7 +145,7 @@ function Home() {
           body: JSON.stringify({
             user_id: userId,
             duration: totalStudySeconds,
-            date: new Date(),
+            date: new Date().toISOString(),
           }),
         });
 
@@ -147,10 +172,7 @@ function Home() {
   };
 
   const uploadFile = async (file) => {
-    if (!file) {
-      alert("Please choose a file first.");
-      return;
-    }
+    if (!file) return;
 
     const formData = new FormData();
     formData.append("file", file);
@@ -182,10 +204,10 @@ function Home() {
       youtubeLink.trim() !== ""
         ? youtubeLink.trim()
         : contentText.trim() !== ""
-          ? contentText
-          : uploadedFileName;
+          ? contentText.trim()
+          : uploadedFileName.trim();
 
-    if (sourceText.trim() === "") {
+    if (sourceText === "") {
       alert("Please paste text, add a YouTube link, or upload a file first.");
       return;
     }
@@ -237,7 +259,7 @@ function Home() {
         body: JSON.stringify({
           exam_id: 1,
           type: "ai",
-          question_text: aiQuestion,
+          question_text: aiQuestion.trim(),
         }),
       });
 
@@ -296,7 +318,7 @@ function Home() {
 
               {youtubeLink && (
                 <p className="text-xs text-red-500 mt-2">
-                  YouTube video attached ✓
+                  YouTube video attached
                 </p>
               )}
             </div>
@@ -305,11 +327,11 @@ function Home() {
               type="file"
               ref={fileInputRef}
               className="hidden"
-              onChange={(e) => uploadFile(e.target.files[0])}
+              onChange={(e) => uploadFile(e.target.files?.[0])}
             />
 
             <button
-              onClick={() => fileInputRef.current.click()}
+              onClick={() => fileInputRef.current?.click()}
               className="w-full bg-[#1e3a8a] hover:bg-[#1a3277] text-white rounded-xl py-3 font-medium flex items-center justify-center gap-2 mb-4 transition"
             >
               <Paperclip size={18} />
@@ -353,7 +375,7 @@ function Home() {
                     min="1"
                     value={studyMinutes}
                     onChange={(e) => {
-                      const value = Number(e.target.value);
+                      const value = getPositiveNumber(e.target.value, 1);
                       setStudyMinutes(value);
                       if (!planRunning && mode === "study") {
                         setTimeLeft(value * 60);
@@ -369,7 +391,9 @@ function Home() {
                     type="number"
                     min="1"
                     value={breakMinutes}
-                    onChange={(e) => setBreakMinutes(Number(e.target.value))}
+                    onChange={(e) =>
+                      setBreakMinutes(getPositiveNumber(e.target.value, 1))
+                    }
                     className="w-full border border-slate-300 rounded-xl px-3 py-2 mt-1 outline-none focus:ring-2 focus:ring-blue-300"
                   />
                 </div>
@@ -380,7 +404,9 @@ function Home() {
                     type="number"
                     min="1"
                     value={totalSessions}
-                    onChange={(e) => setTotalSessions(Number(e.target.value))}
+                    onChange={(e) =>
+                      setTotalSessions(getPositiveNumber(e.target.value, 1))
+                    }
                     className="w-full border border-slate-300 rounded-xl px-3 py-2 mt-1 outline-none focus:ring-2 focus:ring-blue-300"
                   />
                 </div>
@@ -388,7 +414,7 @@ function Home() {
             )}
 
             <p className="text-center text-slate-600 mb-2">
-              {mode === "study" ? "📚 Study Time" : "☕ Break Time"} — Session{" "}
+              {mode === "study" ? "Study Time" : "Break Time"} - Session{" "}
               {currentSession} / {totalSessions}
             </p>
 
@@ -400,16 +426,20 @@ function Home() {
               <div
                 className="bg-[#1e3a8a] h-3 rounded-full transition-all"
                 style={{ width: `${getSessionProgress()}%` }}
-              ></div>
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <button
-                onClick={planRunning ? pauseStudyPlan : startStudyPlan}
+                onClick={handleMainTimerButton}
                 className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl py-3 font-medium flex items-center justify-center gap-2 transition"
               >
                 {planRunning ? <Pause size={18} /> : <Play size={18} />}
-                {planRunning ? "Pause" : "Start Study Plan"}
+                {planRunning
+                  ? "Pause"
+                  : planStarted
+                    ? "Resume"
+                    : "Start Study Plan"}
               </button>
 
               <button
@@ -474,7 +504,7 @@ function Home() {
           )}
 
           <p className="text-sm text-slate-500 mb-4">
-            Learnova uses AI to help you study smarter — create flashcards,
+            Learnova uses AI to help you study smarter - create flashcards,
             summaries, explanations, and practice exams from any content.
           </p>
 
@@ -486,6 +516,7 @@ function Home() {
               placeholder="Ask anything..."
               className="flex-1 border border-slate-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-300"
             />
+
             <button
               onClick={sendQuestion}
               className="bg-[#1e3a8a] hover:bg-[#1a3277] text-white p-3 rounded-xl transition"
