@@ -8,18 +8,6 @@ const {
 
 } = require("../controllers/AIController");
 
-router.post(
-
-  "/flashcards",
-
-  generateFlashcards
-
-);
-
-router.get("/", (req, res) => {
-
-  res.send("AI ROUTE WORKING");
-
-});
+router.post("/generate", generateStudyMaterials);
 
 module.exports = router;

@@ -9,42 +9,39 @@ export default function ExamPage() {
   const [time, setTime] = useState(0);
 
   const [duration, setDuration] = useState(15);
-  const [examType, setExamType] = useState("MCQ");
-  const [difficulty, setDifficulty] = useState("Easy");
   const [questionCount, setQuestionCount] = useState(5);
 
-  // Questions from backend
   const [questions, setQuestions] = useState([]);
 
   const questionsPerPage = 2;
-  const totalPages = Math.ceil(
-    questions.length / questionsPerPage
-  );
 
-  // Fetch questions from backend
   useEffect(() => {
-    fetch("http://localhost:3000/questions")
-      .then((res) => res.json())
-      .then((data) => {
-        const formattedQuestions = data.map((q) => ({
-          q: q.question,
-          type: q.type,
-          difficulty: q.difficulty,
-          options: q.Options?.map((o) => o.text) || [],
-          correct: q.correctAnswer,
-        }));
+    const savedQuestions =
+      JSON.parse(localStorage.getItem("aiExamQuestions")) || [];
 
-        setQuestions(formattedQuestions);
-      })
-      .catch((err) => console.log(err));
+    const formattedQuestions = savedQuestions.map((q) => ({
+      q: q.question,
+      answer: q.answer || "",
+      type: "Essay",
+      options: [],
+      correct: null,
+    }));
+
+    setQuestions(formattedQuestions);
   }, []);
 
-  // Timer
   useEffect(() => {
     if (!started || submitted) return;
 
     const timer = setInterval(() => {
-      setTime((t) => (t > 0 ? t - 1 : 0));
+      setTime((t) => {
+        if (t <= 1) {
+          setSubmitted(true);
+          return 0;
+        }
+
+        return t - 1;
+      });
     }, 1000);
 
     return () => clearInterval(timer);
@@ -72,28 +69,14 @@ export default function ExamPage() {
     return `${m}:${s.toString().padStart(2, "0")}`;
   };
 
-  const handleAnswer = (qIndex, optionIndex) => {
-    if (submitted) return;
-
-    setAnswers({
-      ...answers,
-      [qIndex]: optionIndex,
-    });
-  };
-
-  // Filter questions
-  const filteredQuestions = questions
-    .filter(
-      (q) =>
-        q.type === examType &&
-        q.difficulty === difficulty
-    )
-    .slice(0, questionCount);
+  const filteredQuestions = questions.slice(0, questionCount);
 
   const currentQuestions = filteredQuestions.slice(
     page * questionsPerPage,
     page * questionsPerPage + questionsPerPage
   );
+
+  const totalPages = Math.ceil(filteredQuestions.length / questionsPerPage);
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -105,86 +88,45 @@ export default function ExamPage() {
             className="bg-slate-800 text-white p-8 rounded-3xl w-full max-w-md space-y-4"
           >
             <h2 className="text-2xl font-bold text-center !text-white">
-              Exam Settings
+              AI Exam Settings
             </h2>
 
-            {/* Exam Type */}
             <div>
-              <label>Exam Type</label>
-
-              <div className="flex gap-2 mt-2">
-                {["MCQ", "TF", "Essay"].map((t) => (
-                  <button
-                    key={t}
-                    onClick={() => setExamType(t)}
-                    className={`flex-1 py-2 rounded-xl transition ${
-                      examType === t
-                        ? "bg-blue-600"
-                        : "bg-slate-800 text-white hover:bg-blue-700"
-                    }`}
-                  >
-                    {t}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Difficulty */}
-            <div>
-              <label>Difficulty Level</label>
-
-              <div className="flex gap-2 mt-2">
-                {["Easy", "Medium", "Hard"].map((lvl) => (
-                  <button
-                    key={lvl}
-                    onClick={() => setDifficulty(lvl)}
-                    className={`flex-1 py-2 rounded-xl transition ${
-                      difficulty === lvl
-                        ? "bg-blue-600"
-                        : "bg-slate-800 text-white hover:bg-blue-700"
-                    }`}
-                  >
-                    {lvl}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Number of Questions */}
-            <div>
-              <label>
-                Number of Questions
-              </label>
+              <label>Number of Questions</label>
 
               <input
                 type="number"
                 min="1"
-                max="20"
+                max={questions.length || 5}
                 value={questionCount}
-                onChange={(e) =>
-                  setQuestionCount(+e.target.value)
-                }
+                onChange={(e) => setQuestionCount(Number(e.target.value))}
                 className="w-full p-2 mt-1 bg-slate-700 rounded"
               />
             </div>
 
-            {/* Duration */}
             <div>
               <label>Duration (minutes)</label>
 
               <input
                 type="number"
+                min="1"
                 value={duration}
-                onChange={(e) =>
-                  setDuration(+e.target.value)
-                }
+                onChange={(e) => setDuration(Number(e.target.value))}
                 className="w-full p-2 mt-1 bg-slate-700 rounded"
               />
             </div>
 
+            {questions.length === 0 && (
+              <p className="text-sm text-yellow-300">
+                No AI exam questions yet. Go to Home and click Generate Study
+                Materials first.
+              </p>
+            )}
+
             <button
               onClick={startExam}
-              className="w-full bg-blue-600 py-3 rounded-xl mt-4"
+              disabled={questions.length === 0}
+              className="w-full bg-blue-600 disabled:bg-slate-500 py-3 rounded-xl mt-4"
             >
               Start Exam
             </button>
@@ -193,9 +135,7 @@ export default function ExamPage() {
       ) : (
         <div className="max-w-5xl mx-auto">
           <div className="flex justify-between mb-4">
-            <h1 className="text-2xl font-bold">
-              Exam ({examType})
-            </h1>
+            <h1 className="text-2xl font-bold">AI Exam</h1>
 
             <div className="bg-yellow-200 px-4 py-2 rounded">
               ⏱ {formatTime(time)}
@@ -212,8 +152,7 @@ export default function ExamPage() {
               className="space-y-6"
             >
               {currentQuestions.map((q, i) => {
-                const qIndex =
-                  page * questionsPerPage + i;
+                const qIndex = page * questionsPerPage + i;
 
                 return (
                   <div
@@ -221,61 +160,28 @@ export default function ExamPage() {
                     className="bg-slate-800 text-white p-6 rounded-2xl shadow-lg backdrop-blur"
                   >
                     <h2 className="font-semibold mb-4 !text-white">
-                      {q.q}
+                      {qIndex + 1}. {q.q}
                     </h2>
 
-                    <div className="space-y-3">
-                      {q.type === "Essay" ? (
-                        <textarea
-                          className="w-full p-3 rounded-xl bg-slate-700 text-white"
-                          placeholder="Type your answer here"
-                          disabled={submitted}
-                          value={answers[qIndex] || ""}
-                          onChange={(e) =>
-                            setAnswers({
-                              ...answers,
-                              [qIndex]: e.target.value,
-                            })
-                          }
-                        />
-                      ) : (
-                        q.options.map((opt, idx) => {
-                          let color =
-                            "bg-slate-700";
-
-                          if (submitted) {
-                            if (idx === q.correct)
-                              color =
-                                "bg-green-600";
-                            else if (
-                              answers[qIndex] === idx
-                            )
-                              color =
-                                "bg-red-600";
-                          } else if (
-                            answers[qIndex] === idx
-                          ) {
-                            color =
-                              "bg-blue-600";
-                          }
-
-                          return (
-                            <button
-                              key={idx}
-                              onClick={() =>
-                                handleAnswer(
-                                  qIndex,
-                                  idx
-                                )
-                              }
-                              className={`block w-full text-left p-3 rounded-xl mb-2 ${color}`}
-                            >
-                              {opt}
-                            </button>
-                          );
+                    <textarea
+                      className="w-full p-3 rounded-xl bg-slate-700 text-white"
+                      placeholder="Type your answer here"
+                      disabled={submitted}
+                      value={answers[qIndex] || ""}
+                      onChange={(e) =>
+                        setAnswers({
+                          ...answers,
+                          [qIndex]: e.target.value,
                         })
-                      )}
-                    </div>
+                      }
+                    />
+
+                    {submitted && (
+                      <div className="mt-4 bg-green-700/40 p-3 rounded-xl">
+                        <p className="font-semibold">Suggested Answer:</p>
+                        <p className="text-sm mt-1">{q.answer}</p>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -291,12 +197,7 @@ export default function ExamPage() {
               Previous
             </button>
 
-            {page <
-            Math.ceil(
-              filteredQuestions.length /
-                questionsPerPage
-            ) -
-              1 ? (
+            {page < totalPages - 1 ? (
               <button
                 onClick={() => setPage(page + 1)}
                 className="px-6 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700"

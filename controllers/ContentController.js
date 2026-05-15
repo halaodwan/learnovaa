@@ -1,14 +1,17 @@
+
 const { Content } = require('../models');
 
 const getAllContent = async (req, res) => {
   try {
-    const content = await Content.findAll();
+    const content = await Content.findAll({
+      where: { user_id: req.query.user_id }
+    });
+
     res.json(content);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
-
 
 const getContentById = async (req, res) => {
   try {
@@ -24,11 +27,27 @@ const getContentById = async (req, res) => {
   }
 };
 
+const allowedTypes = ["summary", "explanation", "flashcards", "exam"];
 
 const createContent = async (req, res) => {
   try {
-    const newContent = await Content.create(req.body);
+    const { user_id, material_id, type, content_text } = req.body;
+
+    if (!allowedTypes.includes(type)) {
+      return res.status(400).json({
+        message: "Invalid type. Allowed types: summary, explanation, flashcards, exam"
+      });
+    }
+
+    const newContent = await Content.create({
+      user_id,
+      material_id,
+      type,
+      content_text,
+    });
+
     res.status(201).json(newContent);
+
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

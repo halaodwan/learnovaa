@@ -12,7 +12,6 @@ const {
 } = require('../controllers/ContentController');
 
 
-// Upload settings
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     cb(null, 'uploads/');
@@ -25,8 +24,6 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-
-// Upload file route
 router.post(
   '/upload-file',
   upload.single('file'),
@@ -46,12 +43,17 @@ router.post(
 );
 
 
-// Existing routes
-router.get('/', getAllContent);
+router.get('/', (req, res, next) => {
+  req.query.user_id = req.query.user_id; 
+  return getAllContent(req, res, next);
+});
 
 router.get('/:id', getContentById);
 
-router.post('/', createContent);
+router.post('/', (req, res, next) => {
+  req.body.user_id = req.body.user_id;
+  return createContent(req, res, next);
+});
 
 router.put('/:id', updateContent);
 
