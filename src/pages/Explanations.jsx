@@ -11,6 +11,10 @@ const Explanations = () => {
 
   const mode = searchParams.get("mode") || "explanation";
 
+  const getItemTime = (item) => {
+    return new Date(item.createdAt || item.created_at || 0).getTime();
+  };
+
   useEffect(() => {
     const fetchContents = async () => {
       try {
@@ -28,9 +32,16 @@ const Explanations = () => {
 
         setContents(data);
 
-        // اختار أحدث material مباشرة
-        if (data.length > 0) {
-          setSelectedMaterialId(data[0].material_id);
+        const latestContent = [...data]
+          .filter(
+            (item) =>
+              item.material_id &&
+              ["summary", "explanation"].includes(item.type)
+          )
+          .sort((a, b) => getItemTime(b) - getItemTime(a))[0];
+
+        if (latestContent) {
+          setSelectedMaterialId(latestContent.material_id);
         }
       } catch (err) {
         console.error("Contents fetch failed:", err);
@@ -81,13 +92,24 @@ const Explanations = () => {
         };
       }
 
+      if (getItemTime(item) > getItemTime({ createdAt: groups[key].created_at })) {
+        groups[key].created_at = item.createdAt || item.created_at;
+      }
+
+      if (item.type === "summary" && item.content_text) {
+        groups[key].title =
+          item.title ||
+          item.content_text.slice(0, 30) ||
+          `Material ${key}`;
+      }
+
       if (!groups[key].types.includes(item.type)) {
         groups[key].types.push(item.type);
       }
 
       return groups;
     }, {})
-  );
+  ).sort((a, b) => getItemTime(b) - getItemTime(a));
 
   return (
     <div className="max-w-3xl mx-auto animate-fade-in">

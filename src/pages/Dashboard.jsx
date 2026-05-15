@@ -32,49 +32,82 @@ const Dashboard = () => {
   const [flashcardsCount, setFlashcardsCount] = useState(0);
   const [examsCount, setExamsCount] = useState(0);
 
-  const [studyToday, setStudyToday] = useState(0);
-  const [studyWeek, setStudyWeek] = useState(0);
+  const [studyToday, setStudyToday] = useState("0h");
+  const [studyWeek, setStudyWeek] = useState("0h");
 
   useEffect(() => {
+    const getArrayData = async (url) => {
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        console.warn(`Dashboard request failed: ${url}`);
+        return [];
+      }
+
+      const data = await response.json();
+      return Array.isArray(data) ? data : data?.data || [];
+    };
+
+    const isSameDay = (dateA, dateB) => {
+      return (
+        dateA.getFullYear() === dateB.getFullYear() &&
+        dateA.getMonth() === dateB.getMonth() &&
+        dateA.getDate() === dateB.getDate()
+      );
+    };
+
+    const formatStudyDuration = (seconds) => {
+      if (!seconds || seconds <= 0) return "0h";
+
+      const minutes = Math.round(seconds / 60);
+
+      if (minutes < 60) {
+        return `${minutes}m`;
+      }
+
+      const hours = minutes / 60;
+      return `${Number.isInteger(hours) ? hours : hours.toFixed(1)}h`;
+    };
+
     const fetchData = async () => {
       try {
-        const [tasksRes, contentsRes, flashcardsRes, examsRes, statsRes] =
+        const [tasksData, contentsData, flashcardsData, examsData, sessionsData] =
           await Promise.all([
-            fetch(`${API_URL}/tasks`),
-            fetch(`${API_URL}/contents`),
-            fetch(`${API_URL}/flashcards`),
-            fetch(`${API_URL}/exams`),
-            fetch(`${API_URL}/stats`),
+            getArrayData(`${API_URL}/tasks`),
+            getArrayData(`${API_URL}/contents`),
+            getArrayData(`${API_URL}/flashcards`),
+            getArrayData(`${API_URL}/exams`),
+            getArrayData(`${API_URL}/study-sessions`),
           ]);
 
-        const tasksData = await tasksRes.json();
-        const contentsData = await contentsRes.json();
-        const flashcardsData = await flashcardsRes.json();
-        const examsData = await examsRes.json();
-        const statsData = await statsRes.json();
-
-        setTasks(Array.isArray(tasksData) ? tasksData : tasksData?.data || []);
+        setTasks(tasksData);
 
         setContentsCount(
-          Array.isArray(contentsData)
-            ? contentsData.length
-            : contentsData?.data?.length || 0
+          contentsData.filter((item) => item.type === "summary").length
         );
 
-        setFlashcardsCount(
-          Array.isArray(flashcardsData)
-            ? flashcardsData.length
-            : flashcardsData?.data?.length || 0
+        setFlashcardsCount(flashcardsData.length);
+        setExamsCount(examsData.length);
+
+        const now = new Date();
+        const weekStart = new Date(now);
+        weekStart.setDate(now.getDate() - 6);
+        weekStart.setHours(0, 0, 0, 0);
+
+        const validSessions = sessionsData.filter(
+          (session) => session.user_id === 1 && session.date && session.duration
         );
 
-        setExamsCount(
-          Array.isArray(examsData)
-            ? examsData.length
-            : examsData?.data?.length || 0
-        );
+        const todaySeconds = validSessions
+          .filter((session) => isSameDay(new Date(session.date), now))
+          .reduce((sum, session) => sum + Number(session.duration || 0), 0);
 
-        setStudyToday(statsData?.today || 0);
-        setStudyWeek(statsData?.week || 0);
+        const weekSeconds = validSessions
+          .filter((session) => new Date(session.date) >= weekStart)
+          .reduce((sum, session) => sum + Number(session.duration || 0), 0);
+
+        setStudyToday(formatStudyDuration(todaySeconds));
+        setStudyWeek(formatStudyDuration(weekSeconds));
       } catch (err) {
         console.error("Dashboard error:", err);
       }
@@ -179,13 +212,13 @@ const Dashboard = () => {
     },
     {
       label: "Study Today",
-      value: `${studyToday}h`,
+      value: studyToday,
       icon: Clock,
       color: "bg-purple-500/10 text-purple-500",
     },
     {
       label: "Study Week",
-      value: `${studyWeek}h`,
+      value: studyWeek,
       icon: CalendarDays,
       color: "bg-red-500/10 text-red-500",
     },

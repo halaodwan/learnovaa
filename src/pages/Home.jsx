@@ -20,6 +20,7 @@ function Home() {
   const [youtubeLink, setYoutubeLink] = useState("");
   const [aiQuestion, setAiQuestion] = useState("");
   const [uploadedFileName, setUploadedFileName] = useState("");
+  const [uploadedFileText, setUploadedFileText] = useState("");
   const [aiResult, setAiResult] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
 
@@ -250,6 +251,11 @@ function Home() {
       alert("File uploaded successfully!");
       console.log(data);
       setUploadedFileName(data.fileName || data?.data?.fileName || file.name);
+      setUploadedFileText(data.extractedText || data?.data?.extractedText || "");
+
+      if (!data.extractedText && !data?.data?.extractedText) {
+        alert("File uploaded, but no readable text was found inside it.");
+      }
     } catch (error) {
       console.error(error);
       alert(error.message || "Failed to upload file.");
@@ -259,13 +265,13 @@ function Home() {
   const generateAll = async () => {
     const sources = [
       contentText.trim(),
-      youtubeLink.trim(),
-      uploadedFileName.trim(),
+      uploadedFileText.trim(),
     ].filter(Boolean);
 
     const sourceText = sources.join("\n\n");
+    const cleanYouTubeLink = youtubeLink.trim();
 
-    if (sourceText === "") {
+    if (sourceText === "" && cleanYouTubeLink === "") {
       alert("Please paste text, add a YouTube link, or upload a file first.");
       return;
     }
@@ -281,6 +287,7 @@ function Home() {
         },
         body: JSON.stringify({
           topic: sourceText,
+          youtubeUrl: cleanYouTubeLink,
         }),
       });
 
@@ -289,7 +296,8 @@ function Home() {
       }
 
       const generated = aiData.data;
-      const materialId = await createMaterial(sourceText);
+      const materialTitle = cleanYouTubeLink || sourceText;
+      const materialId = await createMaterial(materialTitle);
       const examId = await createExam(materialId);
 
       await requestJson(`${API_URL}/contents`, {
@@ -424,93 +432,132 @@ function Home() {
     <div className="min-h-screen bg-slate-100 px-6 py-6">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="flex flex-col gap-6">
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-            <h2 className="flex items-center gap-2 text-2xl font-semibold text-slate-800 mb-5">
-              <Paperclip size={22} className="text-slate-700" />
-              Upload Content
-            </h2>
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="px-6 py-5 border-b border-slate-100 bg-gradient-to-r from-indigo-50 to-sky-50">
+              <h2 className="flex items-center gap-3 text-2xl font-semibold text-slate-800">
+                <span className="w-10 h-10 rounded-2xl bg-[#1e3a8a] text-white flex items-center justify-center shadow-sm">
+                  <Paperclip size={21} />
+                </span>
+                Upload Content
+              </h2>
+            </div>
 
-            <textarea
-              value={contentText}
-              onChange={(e) => setContentText(e.target.value)}
-              placeholder="Paste your study content here..."
-              className="w-full border border-slate-300 rounded-xl px-4 py-3 mb-4 outline-none focus:ring-2 focus:ring-blue-300"
-              rows="3"
-            />
-
-            <div className="mb-4">
-              <label className="text-sm font-medium text-slate-700 mb-2 block">
-                YouTube Video
-              </label>
-
-              <div className="flex items-center gap-3 border border-red-200 bg-red-50 rounded-2xl px-4 py-3 focus-within:ring-2 focus-within:ring-red-300 transition">
-                <div className="bg-red-500 p-2 rounded-xl">
-                  <PlayCircle size={22} className="text-white" />
-                </div>
-
-                <input
-                  type="text"
-                  value={youtubeLink}
-                  onChange={(e) => setYoutubeLink(e.target.value)}
-                  placeholder="Paste YouTube link here..."
-                  className="flex-1 bg-transparent outline-none text-slate-700 placeholder:text-slate-400"
+            <div className="p-6">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 mb-4 focus-within:ring-2 focus-within:ring-sky-200 transition">
+                <label className="text-xs font-semibold uppercase text-slate-500 mb-2 block">
+                  Notes
+                </label>
+                <textarea
+                  value={contentText}
+                  onChange={(e) => setContentText(e.target.value)}
+                  placeholder="Paste your study content here..."
+                  className="w-full min-h-[110px] bg-transparent text-slate-700 placeholder:text-slate-400 outline-none resize-y"
+                  rows="4"
                 />
               </div>
 
-              {youtubeLink && (
-                <p className="text-xs text-red-500 mt-2">
-                  YouTube video attached
-                </p>
-              )}
-            </div>
+              <div className="mb-4">
+                <label className="text-xs font-semibold uppercase text-slate-500 mb-2 block">
+                  YouTube Video
+                </label>
 
-            <input
-              type="file"
-              ref={fileInputRef}
-              className="hidden"
-              onChange={(e) => uploadFile(e.target.files?.[0])}
-            />
+                <div className="flex items-center gap-3 border border-red-100 bg-red-50/70 rounded-2xl px-4 py-3.5 focus-within:ring-2 focus-within:ring-red-200 transition">
+                  <div className="bg-red-500 w-10 h-10 rounded-2xl flex items-center justify-center shadow-sm shrink-0">
+                    <PlayCircle size={22} className="text-white" />
+                  </div>
 
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="w-full bg-[#1e3a8a] hover:bg-[#1a3277] text-white rounded-xl py-3 font-medium flex items-center justify-center gap-2 mb-4 transition"
-            >
-              <Paperclip size={18} />
-              Attach Files
-            </button>
+                  <input
+                    type="text"
+                    value={youtubeLink}
+                    onChange={(e) => setYoutubeLink(e.target.value)}
+                    placeholder="Paste YouTube link here..."
+                    className="flex-1 bg-transparent outline-none text-slate-700 placeholder:text-slate-400 min-w-0"
+                  />
 
-            {uploadedFileName && (
-              <div className="flex items-center gap-3 bg-slate-100 border border-slate-200 rounded-xl px-4 py-3 mb-4">
-                <File size={20} className="text-slate-600" />
-                <div>
-                  <p className="text-sm font-medium text-slate-700">
-                    Uploaded file
-                  </p>
-                  <p className="text-xs text-slate-500">{uploadedFileName}</p>
+                  {youtubeLink && (
+                    <span className="hidden sm:inline-flex text-xs font-semibold text-red-600 bg-white/80 border border-red-100 rounded-full px-3 py-1">
+                      Attached
+                    </span>
+                  )}
                 </div>
-              </div>
-            )}
 
-            <button
-              onClick={generateAll}
-              disabled={aiLoading}
-              className="w-full bg-purple-600 hover:bg-purple-700 disabled:bg-purple-300 text-white rounded-xl py-4 font-medium flex items-center justify-center gap-2 transition"
-            >
-              <Sparkles size={18} />
-              {aiLoading ? "Generating..." : "Generate Study Materials"}
-            </button>
+                {youtubeLink && (
+                  <p className="text-xs text-red-500 mt-2">
+                    YouTube video attached
+                  </p>
+                )}
+              </div>
+
+              <input
+                type="file"
+                ref={fileInputRef}
+                className="hidden"
+                onChange={(e) => uploadFile(e.target.files?.[0])}
+              />
+
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full bg-[#1e3a8a] hover:bg-[#1a3277] text-white rounded-2xl py-3.5 font-semibold flex items-center justify-center gap-2 mb-4 transition shadow-sm"
+              >
+                <Paperclip size={18} />
+                Attach Files
+              </button>
+
+              {uploadedFileName && (
+                <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 mb-4">
+                  <div className="w-10 h-10 rounded-2xl bg-white text-slate-600 flex items-center justify-center border border-slate-200 shrink-0">
+                    <File size={20} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-slate-700">
+                      Uploaded file
+                    </p>
+                    <p className="text-xs text-slate-500 truncate">
+                      {uploadedFileName}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              <button
+                onClick={generateAll}
+                disabled={aiLoading}
+                className="w-full bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700 disabled:from-violet-300 disabled:to-fuchsia-300 text-white rounded-2xl py-4 font-semibold flex items-center justify-center gap-2 transition shadow-sm"
+              >
+                <Sparkles size={18} />
+                {aiLoading ? "Generating..." : "Generate Study Materials"}
+              </button>
+            </div>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-            <h2 className="flex items-center gap-2 text-2xl font-semibold text-slate-800 mb-5">
-              <Timer size={22} className="text-slate-700" />
-              Custom Study Timer
-            </h2>
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="px-6 py-5 border-b border-slate-100 bg-gradient-to-r from-emerald-50 to-sky-50">
+              <div className="flex items-center justify-between gap-4">
+                <h2 className="flex items-center gap-3 text-2xl font-semibold text-slate-800">
+                  <span className="w-10 h-10 rounded-2xl bg-emerald-500 text-white flex items-center justify-center shadow-sm">
+                    <Timer size={21} />
+                  </span>
+                  Custom Study Timer
+                </h2>
+                <span
+                  className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                    mode === "study"
+                      ? "bg-emerald-100 text-emerald-700"
+                      : "bg-sky-100 text-sky-700"
+                  }`}
+                >
+                  {mode === "study" ? "Focus" : "Break"}
+                </span>
+              </div>
+            </div>
 
-            {!planStarted && (
-              <div className="grid grid-cols-3 gap-3 mb-5">
-                <div>
-                  <label className="text-sm text-slate-600">Study min</label>
+            <div className="p-6">
+              {!planStarted && (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                    <label className="text-xs font-semibold uppercase text-slate-500">
+                      Study min
+                    </label>
                   <input
                     type="number"
                     min="1"
@@ -522,12 +569,14 @@ function Home() {
                         setTimeLeft(value * 60);
                       }
                     }}
-                    className="w-full border border-slate-300 rounded-xl px-3 py-2 mt-1 outline-none focus:ring-2 focus:ring-blue-300"
+                      className="w-full bg-transparent text-lg font-semibold text-slate-800 mt-1 outline-none"
                   />
                 </div>
 
-                <div>
-                  <label className="text-sm text-slate-600">Break min</label>
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                    <label className="text-xs font-semibold uppercase text-slate-500">
+                      Break min
+                    </label>
                   <input
                     type="number"
                     min="1"
@@ -535,12 +584,14 @@ function Home() {
                     onChange={(e) =>
                       setBreakMinutes(getPositiveNumber(e.target.value, 1))
                     }
-                    className="w-full border border-slate-300 rounded-xl px-3 py-2 mt-1 outline-none focus:ring-2 focus:ring-blue-300"
+                      className="w-full bg-transparent text-lg font-semibold text-slate-800 mt-1 outline-none"
                   />
                 </div>
 
-                <div>
-                  <label className="text-sm text-slate-600">Sessions</label>
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                    <label className="text-xs font-semibold uppercase text-slate-500">
+                      Sessions
+                    </label>
                   <input
                     type="number"
                     min="1"
@@ -548,32 +599,53 @@ function Home() {
                     onChange={(e) =>
                       setTotalSessions(getPositiveNumber(e.target.value, 1))
                     }
-                    className="w-full border border-slate-300 rounded-xl px-3 py-2 mt-1 outline-none focus:ring-2 focus:ring-blue-300"
+                      className="w-full bg-transparent text-lg font-semibold text-slate-800 mt-1 outline-none"
                   />
                 </div>
               </div>
             )}
 
-            <p className="text-center text-slate-600 mb-2">
-              {mode === "study" ? "Study Time" : "Break Time"} - Session{" "}
-              {currentSession} / {totalSessions}
-            </p>
+              <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5 mb-5">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-5">
+                  <div className="text-center sm:text-left">
+                    <p className="text-sm font-medium text-slate-500 mb-1">
+                      {mode === "study" ? "Study Time" : "Break Time"}
+                    </p>
+                    <div className="text-5xl font-bold text-[#1e3a8a]">
+                      {formatPlanTime(timeLeft)}
+                    </div>
+                    <p className="text-sm text-slate-500 mt-2">
+                      Session {currentSession} of {totalSessions}
+                    </p>
+                  </div>
 
-            <div className="text-center text-5xl font-bold text-[#1e3a8a] mb-4">
-              {formatPlanTime(timeLeft)}
-            </div>
+                  <div
+                    className="w-28 h-28 rounded-full p-2 shadow-inner"
+                    style={{
+                      background: `conic-gradient(#10b981 ${getSessionProgress()}%, #e2e8f0 0)`,
+                    }}
+                  >
+                    <div className="w-full h-full rounded-full bg-white flex flex-col items-center justify-center">
+                      <span className="text-2xl font-bold text-slate-800">
+                        {getSessionProgress()}%
+                      </span>
+                      <span className="text-xs text-slate-500">done</span>
+                    </div>
+                  </div>
+                </div>
 
-            <div className="w-full bg-slate-200 rounded-full h-3 mb-5 overflow-hidden">
-              <div
-                className="bg-[#1e3a8a] h-3 rounded-full transition-all"
-                style={{ width: `${getSessionProgress()}%` }}
-              />
-            </div>
+                <div className="w-full bg-slate-200 rounded-full h-2.5 mt-5 overflow-hidden">
+                  <div
+                    className="bg-gradient-to-r from-emerald-500 to-sky-500 h-2.5 rounded-full transition-all"
+                    style={{ width: `${getSessionProgress()}%` }}
+                  />
+                </div>
+              </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <button
                 onClick={handleMainTimerButton}
-                className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl py-3 font-medium flex items-center justify-center gap-2 transition"
+                  className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl py-3.5 font-semibold flex items-center justify-center gap-2 transition shadow-sm"
               >
                 {planRunning ? <Pause size={18} /> : <Play size={18} />}
                 {planRunning
@@ -585,63 +657,87 @@ function Home() {
 
               <button
                 onClick={resetStudyPlan}
-                className="bg-slate-500 hover:bg-slate-600 text-white rounded-xl py-3 font-medium flex items-center justify-center gap-2 transition"
+                  className="bg-slate-700 hover:bg-slate-800 text-white rounded-2xl py-3.5 font-semibold flex items-center justify-center gap-2 transition shadow-sm"
               >
                 <RotateCcw size={18} />
                 Reset & Save
               </button>
             </div>
+            </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col">
-          <h2 className="flex items-center gap-2 text-2xl font-semibold text-slate-800 mb-5">
-            <MessageSquare size={22} className="text-sky-500" />
-            Ask AI
-          </h2>
-
-          <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 mb-5">
-            <div className="flex items-start gap-3">
-              <div className="w-8 h-8 rounded-full bg-sky-400 text-white flex items-center justify-center text-sm font-bold shrink-0">
-                AI
-              </div>
-              <div className="bg-white rounded-2xl px-4 py-3 text-slate-700 text-sm shadow-sm max-w-[85%]">
-                Hello! Upload content and I will generate summaries,
-                explanations, flashcards, and exam questions.
-              </div>
-            </div>
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col min-h-[620px]">
+          <div className="px-6 py-5 border-b border-slate-100 bg-gradient-to-r from-sky-50 to-indigo-50">
+            <h2 className="flex items-center gap-2 text-2xl font-semibold text-slate-800">
+              <span className="w-10 h-10 rounded-2xl bg-sky-500 text-white flex items-center justify-center shadow-sm">
+                <MessageSquare size={21} />
+              </span>
+              Ask AI
+            </h2>
           </div>
 
-          {aiResult && (
-            <div className="bg-white border border-slate-200 rounded-2xl p-4 mb-5 shadow-sm overflow-y-auto max-h-[300px]">
-              <h3 className="font-semibold text-slate-800 mb-2">AI Result</h3>
-              <pre className="whitespace-pre-wrap text-sm text-slate-700 font-sans">
-                {aiResult}
-              </pre>
+          <div className="flex-1 p-6 flex flex-col">
+            {aiResult ? (
+              <div className="border border-slate-200 rounded-2xl mb-5 shadow-sm overflow-hidden bg-white">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-slate-50">
+                  <h3 className="font-semibold text-slate-800">AI Result</h3>
+                  {aiLoading && (
+                    <span className="text-xs font-medium text-sky-600">
+                      Thinking...
+                    </span>
+                  )}
+                </div>
+                <div className="p-5 overflow-y-auto max-h-[340px]">
+                  <pre className="whitespace-pre-wrap text-sm leading-7 text-slate-700 font-sans">
+                    {aiResult}
+                  </pre>
+                </div>
+              </div>
+            ) : (
+              <div className="flex-1 min-h-[260px] rounded-2xl border border-slate-200 bg-gradient-to-b from-slate-50 to-white mb-5 flex items-center justify-center">
+                <div className="text-center max-w-sm px-6">
+                  <div className="w-14 h-14 mx-auto rounded-2xl bg-sky-500/10 text-sky-600 flex items-center justify-center mb-4">
+                    <Sparkles size={26} />
+                  </div>
+                  <h3 className="font-semibold text-slate-800 mb-2">
+                    Ready when you are
+                  </h3>
+                  <p className="text-sm text-slate-500 leading-relaxed">
+                    Generate study materials first, then ask a question about
+                    your content.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <p className="text-sm text-slate-500 mb-5 leading-relaxed">
+              Learnova uses AI to help you study smarter from your uploaded
+              files, pasted notes, or YouTube links.
+            </p>
+
+            <div className="mt-auto flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm focus-within:ring-2 focus-within:ring-sky-200">
+              <input
+                type="text"
+                value={aiQuestion}
+                onChange={(e) => setAiQuestion(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !aiLoading) {
+                    sendQuestion();
+                  }
+                }}
+                placeholder="Ask anything about your material..."
+                className="flex-1 px-3 py-2 outline-none text-slate-700 placeholder:text-slate-400 bg-transparent"
+              />
+
+              <button
+                onClick={sendQuestion}
+                disabled={aiLoading}
+                className="bg-[#1e3a8a] hover:bg-[#1a3277] disabled:bg-slate-400 text-white w-11 h-11 rounded-xl transition flex items-center justify-center shrink-0"
+              >
+                <Send size={18} />
+              </button>
             </div>
-          )}
-
-          <p className="text-sm text-slate-500 mb-4">
-            Learnova uses AI to help you study smarter - create flashcards,
-            summaries, explanations, and practice exams from any content.
-          </p>
-
-          <div className="mt-auto flex items-center gap-3">
-            <input
-              type="text"
-              value={aiQuestion}
-              onChange={(e) => setAiQuestion(e.target.value)}
-              placeholder="Ask anything..."
-              className="flex-1 border border-slate-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-300"
-            />
-
-            <button
-              onClick={sendQuestion}
-              disabled={aiLoading}
-              className="bg-[#1e3a8a] hover:bg-[#1a3277] disabled:bg-slate-400 text-white p-3 rounded-xl transition"
-            >
-              <Send size={18} />
-            </button>
           </div>
         </div>
       </div>
