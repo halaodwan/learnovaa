@@ -54,7 +54,7 @@ export default function LoginModal({ onClose, onLoginSuccess }) {
 
     try {
       const res = await axios.post(
-        "http://localhost:3001/users",
+        "http://localhost:3000/users",
         {
           firstName,
           lastName,
