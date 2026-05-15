@@ -23,6 +23,9 @@ function Home() {
   const [aiResult, setAiResult] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
 
+  const [currentMaterialId, setCurrentMaterialId] = useState(null);
+  const [currentExamId, setCurrentExamId] = useState(null);
+
   const [studyMinutes, setStudyMinutes] = useState(25);
   const [breakMinutes, setBreakMinutes] = useState(5);
   const [totalSessions, setTotalSessions] = useState(4);
@@ -37,6 +40,64 @@ function Home() {
   const getPositiveNumber = (value, fallback = 1) => {
     const number = Number(value);
     return Number.isFinite(number) && number >= 1 ? number : fallback;
+  };
+
+  const requestJson = async (url, options = {}) => {
+    const response = await fetch(url, options);
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(data?.message || data?.error || "Request failed");
+    }
+
+    return data;
+  };
+
+  const getSavedId = (data) => {
+    return data?.data?.id || data?.id || data?.insertId || null;
+  };
+
+  const createMaterial = async (title) => {
+    const data = await requestJson(`${API_URL}/materials`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        user_id: userId,
+        title,
+      }),
+    });
+
+    const id = getSavedId(data);
+
+    if (!id) {
+      throw new Error("Material was created, but no material id was returned.");
+    }
+
+    return id;
+  };
+
+  const createExam = async (materialId) => {
+    const data = await requestJson(`${API_URL}/exams`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        user_id: userId,
+        material_id: materialId,
+        title: "Generated Exam",
+      }),
+    });
+
+    const id = getSavedId(data);
+
+    if (!id) {
+      throw new Error("Exam was created, but no exam id was returned.");
+    }
+
+    return id;
   };
 
   useEffect(() => {
@@ -137,7 +198,7 @@ function Home() {
 
     if (totalStudySeconds > 0) {
       try {
-        const response = await fetch(`${API_URL}/study-sessions`, {
+        const data = await requestJson(`${API_URL}/study-sessions`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -149,18 +210,11 @@ function Home() {
           }),
         });
 
-        const data = await response.json();
-
-        if (response.ok) {
-          alert("Study plan saved successfully!");
-          console.log(data);
-        } else {
-          alert("Failed to save study plan.");
-          console.log(data);
-        }
+        alert("Study plan saved successfully!");
+        console.log(data);
       } catch (error) {
         console.error(error);
-        alert("Backend connection failed.");
+        alert("Failed to save study plan.");
       }
     }
 
@@ -178,34 +232,28 @@ function Home() {
     formData.append("file", file);
 
     try {
-      const response = await fetch(`${API_URL}/contents/upload-file`, {
+      const data = await requestJson(`${API_URL}/contents/upload-file`, {
         method: "POST",
         body: formData,
       });
 
-      const data = await response.json();
-
-      if (response.ok) {
-        alert("File uploaded successfully!");
-        console.log(data);
-        setUploadedFileName(data.fileName);
-      } else {
-        alert("Failed to upload file.");
-        console.log(data);
-      }
+      alert("File uploaded successfully!");
+      console.log(data);
+      setUploadedFileName(data.fileName || data?.data?.fileName || file.name);
     } catch (error) {
       console.error(error);
-      alert("Backend connection failed.");
+      alert("Failed to upload file.");
     }
   };
 
   const generateAll = async () => {
-    const sourceText =
-      youtubeLink.trim() !== ""
-        ? youtubeLink.trim()
-        : contentText.trim() !== ""
-        ? contentText.trim()
-        : uploadedFileName.trim();
+    const sources = [
+      contentText.trim(),
+      youtubeLink.trim(),
+      uploadedFileName.trim(),
+    ].filter(Boolean);
+
+    const sourceText = sources.join("\n\n");
 
     if (sourceText === "") {
       alert("Please paste text, add a YouTube link, or upload a file first.");
@@ -216,7 +264,7 @@ function Home() {
       setAiLoading(true);
       setAiResult("");
 
-      const response = await fetch(`${API_URL}/ai/study-materials`, {
+      const aiData = await requestJson(`${API_URL}/ai/study-materials`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -226,28 +274,83 @@ function Home() {
         }),
       });
 
-      const data = await response.json();
-
-      if (response.ok && data.success) {
-        localStorage.setItem("aiSummary", data.data.summary);
-        localStorage.setItem("aiExplanation", data.data.explanation);
-        localStorage.setItem(
-          "aiFlashcards",
-          JSON.stringify(data.data.flashcards)
-        );
-        localStorage.setItem(
-          "aiExamQuestions",
-          JSON.stringify(data.data.examQuestions)
-        );
-
-        alert("Study materials generated successfully!");
-      } else {
-        alert("AI generation failed.");
-        console.log(data);
+      if (!aiData.success || !aiData.data) {
+        throw new Error("AI generation failed.");
       }
+
+      const generated = aiData.data;
+
+      const materialId = await createMaterial(sourceText.slice(0, 80));
+      const examId = await createExam(materialId);
+
+      await requestJson(`${API_URL}/contents`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          user_id: userId,
+          material_id: materialId,
+          type: "summary",
+          content_text: generated.summary || "",
+        }),
+      });
+
+      await requestJson(`${API_URL}/contents`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          user_id: userId,
+          material_id: materialId,
+          type: "explanation",
+          content_text: generated.explanation || "",
+        }),
+      });
+
+      await Promise.all(
+        (generated.flashcards || []).map((card) =>
+          requestJson(`${API_URL}/flashcards`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              user_id: userId,
+              material_id: materialId,
+              question: card.question,
+              answer: card.answer,
+            }),
+          })
+        )
+      );
+
+      await Promise.all(
+        (generated.examQuestions || []).map((question) =>
+          requestJson(`${API_URL}/questions`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              exam_id: examId,
+              type: question.type || "Essay",
+              question_text: question.question,
+              answer: question.answer,
+            }),
+          })
+        )
+      );
+
+      setCurrentMaterialId(materialId);
+      setCurrentExamId(examId);
+      setAiResult(generated.summary || generated.explanation || "Done.");
+
+      alert("Study materials saved to database successfully!");
     } catch (error) {
       console.error(error);
-      alert("Backend connection failed.");
+      alert(error.message || "Backend connection failed.");
     } finally {
       setAiLoading(false);
     }
@@ -259,24 +362,26 @@ function Home() {
       return;
     }
 
+    if (!currentMaterialId) {
+      alert("Please generate study materials first.");
+      return;
+    }
+
     try {
       setAiLoading(true);
 
-      const response = await fetch(`${API_URL}/ai/ask`, {
+      const data = await requestJson(`${API_URL}/ai/ask`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
           question: aiQuestion.trim(),
-          summary: localStorage.getItem("aiSummary") || "",
-          explanation: localStorage.getItem("aiExplanation") || "",
+          material_id: currentMaterialId,
         }),
       });
 
-      const data = await response.json();
-
-      if (response.ok && data.success) {
+      if (data.success) {
         setAiResult(data.answer);
         setAiQuestion("");
       } else {
@@ -285,7 +390,7 @@ function Home() {
       }
     } catch (error) {
       console.error(error);
-      alert("Backend connection failed.");
+      alert("AI answer failed.");
     } finally {
       setAiLoading(false);
     }
@@ -447,11 +552,7 @@ function Home() {
                 className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl py-3 font-medium flex items-center justify-center gap-2 transition"
               >
                 {planRunning ? <Pause size={18} /> : <Play size={18} />}
-                {planRunning
-                  ? "Pause"
-                  : planStarted
-                  ? "Resume"
-                  : "Start Study Plan"}
+                {planRunning ? "Pause" : planStarted ? "Resume" : "Start Study Plan"}
               </button>
 
               <button
@@ -472,41 +573,20 @@ function Home() {
           </h2>
 
           <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 mb-5">
-            <div className="flex items-start gap-3 mb-4">
-              <div className="w-8 h-8 rounded-full bg-sky-400 text-white flex items-center justify-center text-sm font-bold shrink-0">
-                AI
-              </div>
-              <div className="bg-white rounded-2xl px-4 py-3 text-slate-700 text-sm shadow-sm max-w-[85%]">
-                Hello! I’m your AI study assistant. Upload content and I’ll help
-                you create flashcards, summaries, explanations, and exams. What
-                would you like to learn today?
-              </div>
-            </div>
-
-            <div className="flex justify-end items-start gap-3 mb-4">
-              <div className="bg-slate-200 rounded-2xl px-4 py-3 text-slate-700 text-sm shadow-sm max-w-[70%]">
-                Can you summarize my biology notes?
-              </div>
-              <div className="w-8 h-8 rounded-full bg-[#1e3a8a] text-white flex items-center justify-center text-sm font-bold shrink-0">
-                A
-              </div>
-            </div>
-
             <div className="flex items-start gap-3">
               <div className="w-8 h-8 rounded-full bg-sky-400 text-white flex items-center justify-center text-sm font-bold shrink-0">
                 AI
               </div>
               <div className="bg-white rounded-2xl px-4 py-3 text-slate-700 text-sm shadow-sm max-w-[85%]">
-                Of course! Please upload your biology notes using the Attach
-                Files button, then click "Generate Study Materials" to get
-                started.
+                Hello! Upload content and I will generate summaries,
+                explanations, flashcards, and exam questions.
               </div>
             </div>
           </div>
 
           {aiResult && (
             <div className="bg-white border border-slate-200 rounded-2xl p-4 mb-5 shadow-sm overflow-y-auto max-h-[300px]">
-              <h3 className="font-semibold text-slate-800 mb-2">AI Answer</h3>
+              <h3 className="font-semibold text-slate-800 mb-2">AI Result</h3>
               <pre className="whitespace-pre-wrap text-sm text-slate-700 font-sans">
                 {aiResult}
               </pre>

@@ -1,57 +1,104 @@
 const Groq = require("groq-sdk");
+const { YoutubeTranscript } = require("youtube-transcript");
 
-const client = new OpenAI({
-  apiKey: process.env.DEEPSEEK_API_KEY,
-  baseURL: "https://api.deepseek.com",
+const groq = new Groq({
+  apiKey: process.env.GROQ_API_KEY,
 });
+
+const isYouTubeLink = (text) => {
+  return text.includes("youtube.com") || text.includes("youtu.be");
+};
+
+const getYouTubeTranscript = async (url) => {
+  const transcript = await YoutubeTranscript.fetchTranscript(url);
+
+  return transcript
+    .map((item) => item.text)
+    .join(" ");
+};
 
 const generateStudyMaterials = async (req, res) => {
   try {
-    const { content } = req.body;
+    let { topic } = req.body;
 
-    if (!content) {
+    if (!topic) {
       return res.status(400).json({
-        message: "Content is required",
+        success: false,
+        message: "Topic is required",
       });
     }
 
-    const response = await client.chat.completions.create({
-      model: "deepseek-chat",
+    if (isYouTubeLink(topic)) {
+      try {
+        topic = await getYouTubeTranscript(topic);
+      } catch (error) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Could not read this YouTube video. The video may not have captions/transcript.",
+        });
+      }
+    }
+
+    const completion = await groq.chat.completions.create({
       messages: [
-        {
-          role: "system",
-          content:
-            "You are an AI study assistant. Generate clear study materials for students.",
-        },
         {
           role: "user",
           content: `
-Create study materials from this content:
+Create study materials about: ${topic}
 
-${content}
+Return ONLY valid JSON.
+No markdown.
+No explanation.
+No code block.
 
-Return:
-1. Summary
-2. Explanation
-3. 5 Flashcards as question and answer
-4. 5 Exam questions
-          `,
+Use this exact structure:
+
+{
+  "summary": "",
+  "explanation": "",
+  "flashcards": [
+    {
+      "question": "",
+      "answer": ""
+    }
+  ],
+  "examQuestions": [
+    {
+      "question": "",
+      "answer": ""
+    }
+  ]
+}
+
+Make 5 flashcards and 5 exam questions.
+`,
         },
       ],
+      model: "llama-3.1-8b-instant",
     });
 
-    res.status(200).json({
-      result: response.choices[0].message.content,
+    const text = completion.choices[0].message.content;
+
+    const cleanedText = text
+      .replace(/```json/g, "")
+      .replace(/```/g, "")
+      .trim();
+
+    const response = JSON.parse(cleanedText);
+
+    res.json({
+      success: true,
+      data: response,
     });
   } catch (error) {
-    console.error(error);
+    console.log("Groq Error:", error);
+
     res.status(500).json({
-      message: "AI generation failed",
-      error: error.message,
+      success: false,
+      message: error.message,
     });
-
   }
-
 };
 
 const askAI = async (req, res) => {
@@ -94,7 +141,7 @@ Answer clearly and simply.
 
     res.json({
       success: true,
-      answer: answer,
+      answer,
     });
   } catch (error) {
     console.log("Groq Ask Error:", error);

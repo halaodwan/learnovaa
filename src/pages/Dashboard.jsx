@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 
+const API_URL = "http://localhost:3000";
+
 const quickLinks = [
   { label: "Latest Exams", icon: ClipboardList, path: "/exams" },
   { label: "Latest Summaries", icon: FileText, path: "/explanations" },
@@ -20,15 +22,8 @@ const quickLinks = [
   { label: "Start Study Session", icon: Play, path: "/" },
 ];
 
-const initialTasks = [
-  { id: 1, title: "Review Biology Ch. 5", time: "10:00 AM", done: false },
-  { id: 2, title: "Complete Physics Flashcards", time: "12:00 PM", done: true },
-  { id: 3, title: "Take History Practice Exam", time: "3:00 PM", done: false },
-  { id: 4, title: "Read Chemistry Notes", time: "5:00 PM", done: false },
-];
-
 const Dashboard = () => {
-  const [tasks, setTasks] = useState(initialTasks);
+  const [tasks, setTasks] = useState([]);
   const [newTask, setNewTask] = useState("");
   const [newTime, setNewTime] = useState("12:00");
   const [showAdd, setShowAdd] = useState(false);
@@ -41,237 +36,274 @@ const Dashboard = () => {
   const [studyWeek, setStudyWeek] = useState(0);
 
   useEffect(() => {
-    const fetchDashboardData = async () => {
+    const fetchData = async () => {
       try {
-        const contentsRes = await fetch("http://localhost:3000/contents");
-        const flashcardsRes = await fetch("http://localhost:3000/flashcards");
-        const examsRes = await fetch("http://localhost:3000/exams");
+        const [tasksRes, contentsRes, flashcardsRes, examsRes, statsRes] =
+          await Promise.all([
+            fetch(`${API_URL}/tasks`),
+            fetch(`${API_URL}/contents`),
+            fetch(`${API_URL}/flashcards`),
+            fetch(`${API_URL}/exams`),
+            fetch(`${API_URL}/stats`),
+          ]);
 
+        const tasksData = await tasksRes.json();
         const contentsData = await contentsRes.json();
         const flashcardsData = await flashcardsRes.json();
         const examsData = await examsRes.json();
+        const statsData = await statsRes.json();
 
-        const contentsArray = Array.isArray(contentsData) ? contentsData : [];
-        const flashcardsArray = Array.isArray(flashcardsData)
-          ? flashcardsData
-          : [];
-        const examsArray = Array.isArray(examsData) ? examsData : [];
+        setTasks(Array.isArray(tasksData) ? tasksData : tasksData?.data || []);
 
-        setContentsCount(contentsArray.length);
-        setFlashcardsCount(flashcardsArray.length);
-        setExamsCount(examsArray.length);
+        setContentsCount(
+          Array.isArray(contentsData)
+            ? contentsData.length
+            : contentsData?.data?.length || 0
+        );
 
-        const todayHours =
-          examsArray.length * 1 +
-          contentsArray.length * 0.5 +
-          flashcardsArray.length * 0.25;
+        setFlashcardsCount(
+          Array.isArray(flashcardsData)
+            ? flashcardsData.length
+            : flashcardsData?.data?.length || 0
+        );
 
-        const weekHours = todayHours * 5;
+        setExamsCount(
+          Array.isArray(examsData)
+            ? examsData.length
+            : examsData?.data?.length || 0
+        );
 
-        setStudyToday(todayHours.toFixed(1));
-        setStudyWeek(weekHours.toFixed(1));
-      } catch (error) {
-        console.error("Dashboard fetch error:", error);
+        setStudyToday(statsData?.today || 0);
+        setStudyWeek(statsData?.week || 0);
+      } catch (err) {
+        console.error("Dashboard error:", err);
       }
     };
 
-    fetchDashboardData();
+    fetchData();
   }, []);
+
+  const addTask = async () => {
+    if (!newTask.trim()) return;
+
+    try {
+      const res = await fetch(`${API_URL}/tasks`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: newTask.trim(),
+          time: newTime,
+          done: false,
+        }),
+      });
+
+      const saved = await res.json();
+
+      if (!res.ok) {
+        console.error(saved);
+        return;
+      }
+
+      const savedTask = saved?.data || saved;
+
+      setTasks((prev) => [...prev, savedTask]);
+      setNewTask("");
+      setNewTime("12:00");
+      setShowAdd(false);
+    } catch (err) {
+      console.error("Add task error:", err);
+    }
+  };
+
+  const toggleTask = async (id) => {
+    const task = tasks.find((t) => t.id === id);
+    if (!task) return;
+
+    try {
+      const res = await fetch(`${API_URL}/tasks/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ done: !task.done }),
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        console.error(error);
+        return;
+      }
+
+      setTasks((prev) =>
+        prev.map((t) => (t.id === id ? { ...t, done: !t.done } : t))
+      );
+    } catch (err) {
+      console.error("Toggle task error:", err);
+    }
+  };
+
+  const removeTask = async (id) => {
+    try {
+      const res = await fetch(`${API_URL}/tasks/${id}`, {
+        method: "DELETE",
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        console.error(error);
+        return;
+      }
+
+      setTasks((prev) => prev.filter((t) => t.id !== id));
+    } catch (err) {
+      console.error("Delete task error:", err);
+    }
+  };
 
   const stats = [
     {
-      label: "Summaries / Explanations",
+      label: "Summaries",
       value: contentsCount,
       icon: BookOpen,
-      color: "bg-edu-info/10 text-edu-info",
+      color: "bg-blue-500/10 text-blue-500",
     },
     {
       label: "Flashcards",
       value: flashcardsCount,
       icon: Layers,
-      color: "bg-edu-success/10 text-edu-success",
+      color: "bg-green-500/10 text-green-500",
     },
     {
-      label: "Exams Taken",
+      label: "Exams",
       value: examsCount,
       icon: ClipboardList,
-      color: "bg-edu-warning/10 text-edu-warning",
+      color: "bg-yellow-500/10 text-yellow-500",
     },
     {
-      label: "Study Hours Today",
+      label: "Study Today",
       value: `${studyToday}h`,
       icon: Clock,
-      color: "bg-primary/10 text-primary",
+      color: "bg-purple-500/10 text-purple-500",
     },
     {
-      label: "Study Hours This Week",
+      label: "Study Week",
       value: `${studyWeek}h`,
       icon: CalendarDays,
-      color: "bg-destructive/10 text-destructive",
+      color: "bg-red-500/10 text-red-500",
     },
   ];
 
-  const toggleTask = (id) => {
-    setTasks(
-      tasks.map((t) =>
-        t.id === id ? { ...t, done: !t.done } : t
-      )
-    );
-  };
-
-  const addTask = () => {
-    if (!newTask.trim()) return;
-
-    setTasks([
-      ...tasks,
-      {
-        id: Date.now(),
-        title: newTask,
-        time: newTime,
-        done: false,
-      },
-    ]);
-
-    setNewTask("");
-    setShowAdd(false);
-  };
-
-  const removeTask = (id) => {
-    setTasks(tasks.filter((t) => t.id !== id));
-  };
-
   return (
-    <div className="animate-fade-in p-4">
-      <h1 className="text-2xl mb-6">📊 Dashboard</h1>
+    <div className="p-4">
+      <h1 className="text-2xl mb-6">Dashboard</h1>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
-        {stats.map(({ label, value, icon: Icon, color }) => (
-          <div
-            key={label}
-            className="glass-card rounded-xl p-4 text-center"
-          >
-            <div
-              className={`w-10 h-10 rounded-lg ${color} flex items-center justify-center mx-auto mb-2`}
-            >
-              <Icon className="w-5 h-5" />
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+        {stats.map((s) => {
+          const Icon = s.icon;
+
+          return (
+            <div key={s.label} className="p-4 rounded-xl shadow bg-white">
+              <div className={`p-2 rounded w-fit ${s.color}`}>
+                <Icon size={18} />
+              </div>
+              <p className="text-xl font-bold">{s.value}</p>
+              <p className="text-sm text-gray-500">{s.label}</p>
             </div>
-
-            <p className="text-2xl font-heading font-bold text-foreground">
-              {value}
-            </p>
-
-            <p className="text-xs text-muted-foreground mt-1">
-              {label}
-            </p>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
-      <div className="glass-card rounded-xl p-5 mb-6">
-        <h3 className="text-lg mb-3">⚡ Quick Access</h3>
+      <div className="p-4 bg-white rounded-xl shadow mb-6">
+        <h2 className="font-bold mb-3">Quick Access</h2>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {quickLinks.map(({ label, icon: Icon, path }) => (
-            <Link
-              key={label}
-              to={path}
-              className="flex items-center gap-2 px-4 py-3 rounded-lg bg-muted hover:bg-secondary transition-colors text-sm font-medium text-foreground"
-            >
-              <Icon className="w-4 h-4 text-primary" />
-              {label}
-            </Link>
-          ))}
+          {quickLinks.map((q) => {
+            const Icon = q.icon;
+
+            return (
+              <Link
+                key={q.label}
+                to={q.path}
+                className="p-3 border rounded flex items-center gap-2 hover:bg-gray-50"
+              >
+                <Icon size={16} />
+                {q.label}
+              </Link>
+            );
+          })}
         </div>
       </div>
 
-      <div className="glass-card rounded-xl p-5">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg">✅ Task List</h3>
+      <div className="p-4 bg-white rounded-xl shadow">
+        <div className="flex justify-between mb-4">
+          <h2 className="font-bold">Tasks</h2>
 
           <button
-            onClick={() => setShowAdd(!showAdd)}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity"
+            onClick={() => setShowAdd((prev) => !prev)}
+            className="bg-blue-500 text-white px-3 py-1 rounded flex items-center"
           >
-            <Plus className="w-4 h-4" />
-            Add Task
+            <Plus size={16} />
           </button>
         </div>
 
         {showAdd && (
           <div className="flex gap-2 mb-4">
             <input
-              type="text"
               value={newTask}
               onChange={(e) => setNewTask(e.target.value)}
-              placeholder="Task title..."
-              className="flex-1 px-3 py-2 rounded-lg border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+              placeholder="Task..."
+              className="border p-2 flex-1 rounded"
             />
 
             <input
               type="time"
               value={newTime}
               onChange={(e) => setNewTime(e.target.value)}
-              className="px-3 py-2 rounded-lg border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+              className="border p-2 rounded"
             />
 
             <button
               onClick={addTask}
-              className="px-4 py-2 rounded-lg bg-edu-success text-edu-success-foreground text-sm font-medium hover:opacity-90 transition-opacity"
+              className="bg-green-500 text-white px-3 rounded"
             >
               Add
             </button>
           </div>
         )}
 
-        <div className="space-y-2">
-          {tasks.map((task) => (
-            <div
-              key={task.id}
-              className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${
-                task.done
-                  ? "bg-edu-success/5"
-                  : "bg-muted/50 hover:bg-muted"
-              }`}
-            >
-              <button onClick={() => toggleTask(task.id)}>
+        {tasks.length === 0 ? (
+          <p className="text-sm text-gray-500">No tasks yet.</p>
+        ) : (
+          tasks.map((t) => (
+            <div key={t.id} className="flex justify-between p-2 border-b">
+              <div
+                className="flex items-center gap-2 cursor-pointer"
+                onClick={() => toggleTask(t.id)}
+              >
                 <div
-                  className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-colors ${
-                    task.done
-                      ? "bg-edu-success border-edu-success"
-                      : "border-muted-foreground/30"
+                  className={`w-5 h-5 border flex items-center justify-center rounded ${
+                    t.done ? "bg-green-500 text-white" : ""
                   }`}
                 >
-                  {task.done && (
-                    <Check className="w-3 h-3 text-edu-success-foreground" />
-                  )}
+                  {t.done && <Check size={14} />}
                 </div>
-              </button>
 
-              <div className="flex-1">
-                <p
-                  className={`text-sm font-medium ${
-                    task.done
-                      ? "line-through text-muted-foreground"
-                      : "text-foreground"
-                  }`}
-                >
-                  {task.title}
-                </p>
+                <span className={t.done ? "line-through text-gray-400" : ""}>
+                  {t.title}
+                </span>
               </div>
 
-              <span className="text-xs text-muted-foreground">
-                {task.time}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-500">{t.time}</span>
 
-              <button
-                onClick={() => removeTask(task.id)}
-                className="p-1 rounded hover:bg-destructive/10 transition-colors"
-              >
-                <Trash2 className="w-3.5 h-3.5 text-muted-foreground hover:text-destructive" />
-              </button>
+                <button
+                  onClick={() => removeTask(t.id)}
+                  className="text-red-500 hover:text-red-700"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
             </div>
-          ))}
-        </div>
+          ))
+        )}
       </div>
     </div>
   );
