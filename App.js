@@ -35,7 +35,7 @@ const studySessionRoutes = require("./Routes/StudySessionRoutes");
 const aiRoutes = require("./Routes/AIRoutes");
 
 app.use("/users", userRoutes);
-app.use("/study-materials", studyMaterialRoutes);
+app.use("/materials", studyMaterialRoutes);
 app.use("/contents", contentRoutes);
 app.use("/flashcards", flashcardRoutes);
 app.use("/exams", examRoutes);

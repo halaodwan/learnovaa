@@ -1,12 +1,17 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
 
+<<<<<<< Updated upstream
 const multer = require('multer');
 const fs = require('fs/promises');
 const path = require('path');
 const { PDFParse } = require('pdf-parse');
 const mammoth = require('mammoth');
 const AdmZip = require('adm-zip');
+=======
+const multer = require("multer");
+const fs = require("fs");
+>>>>>>> Stashed changes
 
 const {
   getAllContent,
@@ -14,21 +19,29 @@ const {
   createContent,
   updateContent,
   deleteContent
-} = require('../controllers/ContentController');
+} = require("../controllers/ContentController");
+
+
+const uploadDir = "uploads/";
+
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
 
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, 'uploads/');
+    cb(null, uploadDir);
   },
 
   filename: function (req, file, cb) {
-    cb(null, Date.now() + '-' + file.originalname);
+    cb(null, Date.now() + "-" + file.originalname);
   }
 });
 
 const upload = multer({ storage });
 
+<<<<<<< Updated upstream
 const stripXml = (xml) => {
   return xml
     .replace(/<[^>]+>/g, ' ')
@@ -121,26 +134,47 @@ router.post(
     } catch (error) {
       res.status(500).json({
         message: error.message
+=======
+
+
+router.post("/upload-file", upload.single("file"), (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        message: "No file uploaded"
+>>>>>>> Stashed changes
       });
     }
+
+    res.status(201).json({
+      message: "File uploaded successfully",
+      fileName: req.file.filename,
+      filePath: `/uploads/${req.file.filename}`
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      message: error.message
+    });
   }
-);
+});
 
 
-router.get('/', (req, res, next) => {
-  req.query.user_id = req.query.user_id; 
+
+router.get("/", (req, res, next) => {
+  req.query.user_id = req.query.user_id;
   return getAllContent(req, res, next);
 });
 
-router.get('/:id', getContentById);
+router.get("/:id", getContentById);
 
-router.post('/', (req, res, next) => {
+router.post("/", (req, res, next) => {
   req.body.user_id = req.body.user_id;
   return createContent(req, res, next);
 });
 
-router.put('/:id', updateContent);
+router.put("/:id", updateContent);
 
-router.delete('/:id', deleteContent);
+router.delete("/:id", deleteContent);
 
 module.exports = router;

@@ -219,7 +219,25 @@ Make 5 flashcards and 5 exam questions.
       });
     }
 
+<<<<<<< Updated upstream
     const response = parseAiJson(text);
+=======
+    // 🔥 FIX: safe JSON parsing
+    let response;
+
+    try {
+      response = JSON.parse(cleanedText);
+    } catch (err) {
+      console.log("⚠️ JSON Parse Failed, fallback activated");
+
+      response = {
+        summary: "",
+        explanation: cleanedText || "",
+        flashcards: [],
+        examQuestions: [],
+      };
+    }
+>>>>>>> Stashed changes
 
     res.json({
       success: true,
