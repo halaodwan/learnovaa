@@ -14,7 +14,7 @@ const FlashcardItem = ({ card, flipped, setFlipped }) => {
         className="relative w-full h-64"
       >
         
-        {/* QUESTION (ثابت كحلي) */}
+    
         <div
           className="absolute inset-0 bg-gray-900 text-white rounded-xl shadow-lg flex flex-col items-center justify-center p-8 text-center border"
           style={{ backfaceVisibility: "hidden" }}
@@ -23,7 +23,7 @@ const FlashcardItem = ({ card, flipped, setFlipped }) => {
           <p className="text-lg font-semibold">{card.question}</p>
         </div>
 
-        {/* ANSWER (ثابت أبيض) */}
+  
         <div
           className="absolute inset-0 bg-white text-gray-900 rounded-xl shadow-lg flex flex-col items-center justify-center p-8 text-center border"
           style={{
