@@ -51,14 +51,12 @@ const Explanations = () => {
     fetchContents();
   }, []);
 
-  // فلترة حسب المادة المختارة
   const selectedContents = selectedMaterialId
     ? contents.filter(
         (item) => item.material_id === selectedMaterialId
       )
     : [];
 
-  // جيب explanation و summary
   const explanationItem = selectedContents.find(
     (item) => item.type === "explanation"
   );
@@ -74,7 +72,6 @@ const Explanations = () => {
       : summaryItem?.content_text ||
         "No summary available yet. Generate study materials first.";
 
-  // تجميع المواد القديمة
   const groupedMaterials = Object.values(
     contents.reduce((groups, item) => {
       const key = item.material_id || item.id;
@@ -161,7 +158,6 @@ const Explanations = () => {
         </button>
       </div>
 
-      {/* Content */}
       <AnimatePresence mode="wait">
         <motion.div
           key={`${mode}-${selectedMaterialId}`}
@@ -180,7 +176,6 @@ const Explanations = () => {
         </motion.div>
       </AnimatePresence>
 
-      {/* Convert button */}
       <div className="flex flex-wrap gap-3 mb-8">
         <button
           onClick={() =>
@@ -201,7 +196,6 @@ const Explanations = () => {
         </button>
       </div>
 
-      {/* History */}
       <div className="glass-card rounded-xl p-5">
         <h3 className="text-lg mb-3 flex items-center gap-2">
           <History className="w-5 h-5 text-muted-foreground" />

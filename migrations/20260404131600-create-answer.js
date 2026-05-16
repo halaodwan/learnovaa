@@ -15,9 +15,6 @@ module.exports = {
       question_id: {
         type: Sequelize.INTEGER
       },
-      selected_option_id: {
-        type: Sequelize.INTEGER
-      },
       answer_text: {
         type: Sequelize.STRING
       },

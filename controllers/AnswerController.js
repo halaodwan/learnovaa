@@ -1,14 +1,9 @@
-const { Answer, Option } = require('../models');
+const { Answer } = require('../models');
 
 
 const getAllAnswers = async (req, res) => {
   try {
-    const answers = await Answer.findAll({
-      include: {
-        model: Option,
-        as: 'option',
-      },
-    });
+    const answers = await Answer.findAll();
 
     res.status(200).json(answers);
   } catch (error) {
@@ -19,12 +14,7 @@ const getAllAnswers = async (req, res) => {
 
 const getAnswerById = async (req, res) => {
   try {
-    const answer = await Answer.findByPk(req.params.id, {
-      include: {
-        model: Option,
-        as: 'option',
-      },
-    });
+    const answer = await Answer.findByPk(req.params.id);
 
     if (!answer) {
       return res.status(404).json({ message: 'Answer not found' });
