@@ -1,4 +1,3 @@
-
 const { Content } = require('../models');
 
 const getAllContent = async (req, res) => {
@@ -29,7 +28,7 @@ const getContentById = async (req, res) => {
   }
 };
 
-const allowedTypes = ["summary", "explanation", "flashcards", "exam"];
+const allowedTypes = ["summary", "explanation"];
 
 const createContent = async (req, res) => {
   try {
